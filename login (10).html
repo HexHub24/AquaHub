@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0c4a6e" />
+    <title>AquaHub — Sign In</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="manifest" href="/manifest.json" />
+  </head>
+  <body>
+    <div class="auth-shell">
+      <div class="auth-card">
+        <div class="brand">
+          <div class="brand-logo">🐠</div>
+          <div class="brand-name">AquaHub</div>
+          <div class="brand-tagline">Track tanks. Do the math right.</div>
+        </div>
+
+        <div class="auth-tabs" role="tablist">
+          <button class="auth-tab active" data-mode="signin" type="button">Sign In</button>
+          <button class="auth-tab" data-mode="signup" type="button">Sign Up</button>
+        </div>
+
+        <div id="alert" class="alert" role="alert"></div>
+
+        <div class="form-group">
+          <label class="form-label" for="email">Email</label>
+          <input
+            id="email"
+            type="email"
+            class="form-input"
+            autocomplete="email"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <input
+            id="password"
+            type="password"
+            class="form-input"
+            autocomplete="current-password"
+            minlength="8"
+            required
+          />
+        </div>
+
+        <button id="submitBtn" class="btn-primary" type="button">Sign In</button>
+      </div>
+    </div>
+
+    <script type="module">
+      import { supabase, redirectIfAuthed } from '/lib/supabase.js';
+
+      // If already logged in, skip straight to the app.
+      await redirectIfAuthed();
+
+      let mode = 'signin';
+      const tabs = document.querySelectorAll('.auth-tab');
+      const submitBtn = document.getElementById('submitBtn');
+      const alertEl = document.getElementById('alert');
+      const emailEl = document.getElementById('email');
+      const passwordEl = document.getElementById('password');
+
+      function setMode(newMode) {
+        mode = newMode;
+        tabs.forEach((t) =>
+          t.classList.toggle('active', t.dataset.mode === mode)
+        );
+        submitBtn.textContent = mode === 'signin' ? 'Sign In' : 'Create Account';
+        passwordEl.autocomplete =
+          mode === 'signin' ? 'current-password' : 'new-password';
+        clearAlert();
+      }
+
+      function showAlert(message, type = 'error') {
+        alertEl.textContent = message;
+        alertEl.className = `alert show alert-${type}`;
+      }
+
+      function clearAlert() {
+        alertEl.className = 'alert';
+        alertEl.textContent = '';
+      }
+
+      tabs.forEach((tab) => {
+        tab.addEventListener('click', () => setMode(tab.dataset.mode));
+      });
+
+      async function handleSubmit() {
+        const email = emailEl.value.trim();
+        const password = passwordEl.value;
+
+        if (!email || !password) {
+          showAlert('Email and password are required.');
+          return;
+        }
+        if (password.length < 8) {
+          showAlert('Password must be at least 8 characters.');
+          return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = mode === 'signin' ? 'Signing in…' : 'Creating account…';
+        clearAlert();
+
+        try {
+          if (mode === 'signin') {
+            const { error } = await supabase.auth.signInWithPassword({
+              email,
+              password,
+            });
+            if (error) throw error;
+            window.location.href = '/app.html';
+          } else {
+            const { data, error } = await supabase.auth.signUp({
+              email,
+              password,
+            });
+            if (error) throw error;
+            if (data.user && !data.session) {
+              showAlert(
+                'Check your email to confirm your account, then sign in.',
+                'success'
+              );
+              setMode('signin');
+            } else {
+              window.location.href = '/app.html';
+            }
+          }
+        } catch (err) {
+          showAlert(err.message || 'Something went wrong. Please try again.');
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = mode === 'signin' ? 'Sign In' : 'Create Account';
+        }
+      }
+
+      submitBtn.addEventListener('click', handleSubmit);
+
+      // Allow Enter to submit from either field.
+      [emailEl, passwordEl].forEach((el) => {
+        el.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') handleSubmit();
+        });
+      });
+    </script>
+  </body>
+</html>
