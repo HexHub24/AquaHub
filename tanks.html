@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0c4a6e" />
+    <title>AquaHub — My Tanks</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="manifest" href="/manifest.json" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="app-header">
+        <a href="/app.html" class="header-link">🐠 AquaHub</a>
+        <button id="logoutBtn" class="btn-link" type="button">Sign Out</button>
+      </header>
+
+      <main class="app-main">
+        <div class="page-head">
+          <h2 class="page-title">My Tanks</h2>
+          <button id="addTankBtn" class="btn-primary btn-inline" type="button">
+            + Add Tank
+          </button>
+        </div>
+
+        <div id="alert" class="alert" role="alert"></div>
+
+        <div id="loadingState" class="empty-state">Loading your tanks…</div>
+
+        <div id="emptyState" class="empty-state" style="display: none">
+          <div class="empty-icon">🐠</div>
+          <h3>No tanks yet</h3>
+          <p class="text-muted">
+            Add your first tank to start tracking livestock and water parameters.
+          </p>
+          <button class="btn-primary btn-inline" type="button" onclick="document.getElementById('addTankBtn').click()">
+            + Add Your First Tank
+          </button>
+        </div>
+
+        <div id="tankGrid" class="tank-grid" style="display: none"></div>
+      </main>
+    </div>
+
+    <!-- Modal -->
+    <div id="modalBackdrop" class="modal-backdrop" style="display: none">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="modal-header">
+          <h3 id="modalTitle">Add Tank</h3>
+          <button class="modal-close" type="button" id="modalCloseBtn" aria-label="Close">×</button>
+        </div>
+        <div class="modal-body">
+          <div id="modalAlert" class="alert" role="alert"></div>
+
+          <input type="hidden" id="tankId" />
+
+          <div class="form-group">
+            <label class="form-label" for="tankName">Tank Name *</label>
+            <input id="tankName" type="text" class="form-input" required maxlength="60" placeholder="e.g. Living Room 75g" />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="tankType">Type *</label>
+              <select id="tankType" class="form-input" required>
+                <option value="freshwater">Freshwater</option>
+                <option value="saltwater">Saltwater</option>
+                <option value="reef">Reef</option>
+                <option value="planted">Planted</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="tankVolume">Volume (gallons)</label>
+              <input id="tankVolume" type="number" class="form-input" min="0" step="0.5" placeholder="75" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="tankSetupDate">Setup Date</label>
+              <input id="tankSetupDate" type="date" class="form-input" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="tankLighting">Lighting</label>
+              <select id="tankLighting" class="form-input">
+                <option value="">—</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="tankNotes">Notes</label>
+            <textarea id="tankNotes" class="form-input" rows="3" maxlength="500" placeholder="Optional"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="modalDeleteBtn" class="btn-danger" type="button" style="display: none">
+            Delete Tank
+          </button>
+          <div class="modal-footer-right">
+            <button class="btn-secondary" type="button" id="modalCancelBtn">Cancel</button>
+            <button id="modalSaveBtn" class="btn-primary btn-inline" type="button">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      import { supabase, requireAuth } from '/lib/supabase.js';
+
+      const user = await requireAuth();
+      if (!user) throw new Error('not authenticated');
+
+      // ---- DOM refs ----
+      const grid = document.getElementById('tankGrid');
+      const loadingState = document.getElementById('loadingState');
+      const emptyState = document.getElementById('emptyState');
+      const alertEl = document.getElementById('alert');
+      const modalAlertEl = document.getElementById('modalAlert');
+
+      const modalBackdrop = document.getElementById('modalBackdrop');
+      const modalTitle = document.getElementById('modalTitle');
+      const modalDeleteBtn = document.getElementById('modalDeleteBtn');
+
+      const tankIdEl = document.getElementById('tankId');
+      const tankNameEl = document.getElementById('tankName');
+      const tankTypeEl = document.getElementById('tankType');
+      const tankVolumeEl = document.getElementById('tankVolume');
+      const tankSetupDateEl = document.getElementById('tankSetupDate');
+      const tankLightingEl = document.getElementById('tankLighting');
+      const tankNotesEl = document.getElementById('tankNotes');
+
+      // ---- State ----
+      let tanks = [];
+
+      // ---- Helpers ----
+      function showAlert(el, message, type = 'error') {
+        el.textContent = message;
+        el.className = `alert show alert-${type}`;
+      }
+
+      function clearAlert(el) {
+        el.className = 'alert';
+        el.textContent = '';
+      }
+
+      function tankTypeIcon(type) {
+        return { freshwater: '🐟', saltwater: '🐠', reef: '🪸', planted: '🌿' }[type] || '🐟';
+      }
+
+      function tankTypeLabel(type) {
+        return type ? type.charAt(0).toUpperCase() + type.slice(1) : '';
+      }
+
+      function escapeHtml(s) {
+        if (!s) return '';
+        return String(s)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+
+      // ---- Load tanks ----
+      async function loadTanks() {
+        loadingState.style.display = 'block';
+        grid.style.display = 'none';
+        emptyState.style.display = 'none';
+        clearAlert(alertEl);
+
+        const { data, error } = await supabase
+          .from('tanks')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        loadingState.style.display = 'none';
+
+        if (error) {
+          showAlert(alertEl, `Could not load tanks: ${error.message}`);
+          return;
+        }
+
+        tanks = data || [];
+
+        if (tanks.length === 0) {
+          emptyState.style.display = 'block';
+          return;
+        }
+
+        grid.style.display = 'grid';
+        renderTanks();
+      }
+
+      function renderTanks() {
+        grid.innerHTML = tanks
+          .map(
+            (t) => `
+          <article class="tank-card" data-id="${t.id}">
+            <div class="tank-card-header">
+              <div class="tank-card-icon">${tankTypeIcon(t.tank_type)}</div>
+              <div class="tank-card-title">
+                <h3>${escapeHtml(t.name)}</h3>
+                <p class="text-muted">${tankTypeLabel(t.tank_type)}${
+              t.volume_gallons ? ` · ${t.volume_gallons}g` : ''
+            }</p>
+              </div>
+            </div>
+            <dl class="tank-card-stats">
+              <div>
+                <dt>Setup</dt>
+                <dd>${t.setup_date ? formatDate(t.setup_date) : '—'}</dd>
+              </div>
+              <div>
+                <dt>Lighting</dt>
+                <dd>${t.lighting ? capitalize(t.lighting) : '—'}</dd>
+              </div>
+            </dl>
+            <div class="tank-card-actions">
+              <button class="btn-secondary btn-sm tank-edit-btn" type="button" data-id="${t.id}">
+                Edit
+              </button>
+              <a class="btn-primary btn-sm" href="/tank.html?id=${t.id}">
+                Manage →
+              </a>
+            </div>
+          </article>
+        `,
+          )
+          .join('');
+
+        // Bind card-level click for editing (clicking the card body)
+        grid.querySelectorAll('.tank-card').forEach((card) => {
+          card.addEventListener('click', (e) => {
+            // Don't trigger if user clicked the "Manage →" link
+            if (e.target.closest('a')) return;
+            const id = card.dataset.id;
+            openModal(id);
+          });
+        });
+      }
+
+      function formatDate(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return iso;
+        return d.toLocaleDateString(undefined, {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        });
+      }
+
+      function capitalize(s) {
+        return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+      }
+
+      // ---- Modal ----
+      function openModal(tankId = null) {
+        clearAlert(modalAlertEl);
+
+        if (tankId) {
+          const t = tanks.find((x) => x.id === tankId);
+          if (!t) return;
+          modalTitle.textContent = 'Edit Tank';
+          tankIdEl.value = t.id;
+          tankNameEl.value = t.name || '';
+          tankTypeEl.value = t.tank_type || 'freshwater';
+          tankVolumeEl.value = t.volume_gallons ?? '';
+          tankSetupDateEl.value = t.setup_date || '';
+          tankLightingEl.value = t.lighting || '';
+          tankNotesEl.value = t.notes || '';
+          modalDeleteBtn.style.display = 'inline-flex';
+        } else {
+          modalTitle.textContent = 'Add Tank';
+          tankIdEl.value = '';
+          tankNameEl.value = '';
+          tankTypeEl.value = 'freshwater';
+          tankVolumeEl.value = '';
+          tankSetupDateEl.value = '';
+          tankLightingEl.value = '';
+          tankNotesEl.value = '';
+          modalDeleteBtn.style.display = 'none';
+        }
+
+        modalBackdrop.style.display = 'flex';
+        setTimeout(() => tankNameEl.focus(), 50);
+      }
+
+      function closeModal() {
+        modalBackdrop.style.display = 'none';
+      }
+
+      async function saveTank() {
+        const name = tankNameEl.value.trim();
+        if (!name) {
+          showAlert(modalAlertEl, 'Tank name is required.');
+          tankNameEl.focus();
+          return;
+        }
+
+        const payload = {
+          user_id: user.id,
+          name,
+          tank_type: tankTypeEl.value,
+          volume_gallons: tankVolumeEl.value ? parseFloat(tankVolumeEl.value) : null,
+          setup_date: tankSetupDateEl.value || null,
+          lighting: tankLightingEl.value || null,
+          notes: tankNotesEl.value.trim() || null,
+        };
+
+        const id = tankIdEl.value;
+        let error;
+
+        if (id) {
+          // Update
+          ({ error } = await supabase
+            .from('tanks')
+            .update({ ...payload, updated_at: new Date().toISOString() })
+            .eq('id', id));
+        } else {
+          // Insert
+          ({ error } = await supabase.from('tanks').insert(payload));
+        }
+
+        if (error) {
+          showAlert(modalAlertEl, `Save failed: ${error.message}`);
+          return;
+        }
+
+        closeModal();
+        await loadTanks();
+      }
+
+      async function deleteTank() {
+        const id = tankIdEl.value;
+        if (!id) return;
+
+        const t = tanks.find((x) => x.id === id);
+        const name = t?.name || 'this tank';
+        if (
+          !confirm(
+            `Delete "${name}"?\n\nAll livestock and water tests for this tank will also be removed. This cannot be undone.`,
+          )
+        ) {
+          return;
+        }
+
+        const { error } = await supabase.from('tanks').delete().eq('id', id);
+        if (error) {
+          showAlert(modalAlertEl, `Delete failed: ${error.message}`);
+          return;
+        }
+
+        closeModal();
+        await loadTanks();
+      }
+
+      // ---- Event listeners ----
+      document.getElementById('logoutBtn').addEventListener('click', async () => {
+        await supabase.auth.signOut();
+        window.location.href = '/login.html';
+      });
+
+      document.getElementById('addTankBtn').addEventListener('click', () => openModal());
+      document.getElementById('modalCloseBtn').addEventListener('click', closeModal);
+      document.getElementById('modalCancelBtn').addEventListener('click', closeModal);
+      document.getElementById('modalSaveBtn').addEventListener('click', saveTank);
+      modalDeleteBtn.addEventListener('click', deleteTank);
+
+      // Close modal on backdrop click
+      modalBackdrop.addEventListener('click', (e) => {
+        if (e.target === modalBackdrop) closeModal();
+      });
+
+      // ESC closes modal
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modalBackdrop.style.display !== 'none') {
+          closeModal();
+        }
+      });
+
+      // ---- Boot ----
+      loadTanks();
+    </script>
+  </body>
+</html>

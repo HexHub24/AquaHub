@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0c4a6e" />
+    <title>AquaHub — Tank</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="manifest" href="/manifest.json" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="app-header">
+        <a href="/tanks.html" class="header-link">← Tanks</a>
+        <button id="logoutBtn" class="btn-link" type="button">Sign Out</button>
+      </header>
+
+      <main class="app-main">
+        <div id="loadingState" class="empty-state">Loading tank…</div>
+
+        <div id="errorState" class="empty-state" style="display: none">
+          <div class="empty-icon">⚠️</div>
+          <h3>Tank not found</h3>
+          <p class="text-muted">
+            This tank doesn't exist, or you don't have access to it.
+          </p>
+          <a class="btn-primary btn-inline" href="/tanks.html">Back to my tanks</a>
+        </div>
+
+        <div id="content" style="display: none">
+          <div class="page-head">
+            <div>
+              <h2 class="page-title" id="tankTitle">Tank</h2>
+              <p class="text-muted" id="tankSubtitle"></p>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Tank Details</h2>
+            <dl class="detail-list">
+              <div><dt>Type</dt><dd id="dType">—</dd></div>
+              <div><dt>Volume</dt><dd id="dVolume">—</dd></div>
+              <div><dt>Setup Date</dt><dd id="dSetup">—</dd></div>
+              <div><dt>Lighting</dt><dd id="dLighting">—</dd></div>
+            </dl>
+            <div id="notesWrap" style="margin-top: 12px; display: none">
+              <h3 class="detail-subhead">Notes</h3>
+              <p id="dNotes" class="text-body"></p>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Livestock</h2>
+            <p class="text-muted">Coming in the next update — add fish, plants, and inverts to this tank.</p>
+          </div>
+
+          <div class="card">
+            <h2>Water Tests</h2>
+            <p class="text-muted">Coming soon — log temperature, pH, ammonia, nitrite, nitrate, gH and kH over time.</p>
+          </div>
+
+          <div class="card">
+            <h2>Bioload</h2>
+            <p class="text-muted">Coming soon — once livestock is added, AquaHub will calculate the tank's bioload and how much your plants offset it.</p>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script type="module">
+      import { supabase, requireAuth } from '/lib/supabase.js';
+
+      const user = await requireAuth();
+      if (!user) throw new Error('not authenticated');
+
+      // Get tank ID from query string
+      const params = new URLSearchParams(window.location.search);
+      const tankId = params.get('id');
+
+      const loadingState = document.getElementById('loadingState');
+      const errorState = document.getElementById('errorState');
+      const content = document.getElementById('content');
+
+      function showError() {
+        loadingState.style.display = 'none';
+        content.style.display = 'none';
+        errorState.style.display = 'block';
+      }
+
+      function escapeHtml(s) {
+        if (!s) return '';
+        return String(s)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+
+      function capitalize(s) {
+        return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+      }
+
+      function formatDate(iso) {
+        if (!iso) return null;
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return iso;
+        return d.toLocaleDateString(undefined, {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        });
+      }
+
+      if (!tankId) {
+        showError();
+      } else {
+        const { data: tank, error } = await supabase
+          .from('tanks')
+          .select('*')
+          .eq('id', tankId)
+          .maybeSingle();
+
+        if (error || !tank) {
+          showError();
+        } else {
+          document.getElementById('tankTitle').textContent = tank.name;
+          document.getElementById('tankSubtitle').textContent =
+            `${capitalize(tank.tank_type)}${
+              tank.volume_gallons ? ` · ${tank.volume_gallons} gallons` : ''
+            }`;
+
+          document.getElementById('dType').textContent = capitalize(tank.tank_type) || '—';
+          document.getElementById('dVolume').textContent = tank.volume_gallons
+            ? `${tank.volume_gallons} gallons`
+            : '—';
+          document.getElementById('dSetup').textContent =
+            formatDate(tank.setup_date) || '—';
+          document.getElementById('dLighting').textContent =
+            capitalize(tank.lighting) || '—';
+
+          if (tank.notes) {
+            document.getElementById('notesWrap').style.display = 'block';
+            document.getElementById('dNotes').textContent = tank.notes;
+          }
+
+          loadingState.style.display = 'none';
+          content.style.display = 'block';
+        }
+      }
+
+      document.getElementById('logoutBtn').addEventListener('click', async () => {
+        await supabase.auth.signOut();
+        window.location.href = '/login.html';
+      });
+    </script>
+  </body>
+</html>
