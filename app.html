@@ -4,39 +4,90 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0c4a6e" />
-    <title>AquaHub</title>
+    <title>Dashboard — AquaHub</title>
     <link rel="stylesheet" href="/styles.css" />
     <link rel="manifest" href="/manifest.json" />
   </head>
-  <body>
-    <div class="app-shell">
-      <header class="app-header">
-        <span class="header-link">🐠 AquaHub</span>
-        <button id="logoutBtn" class="btn-link" type="button">Sign Out</button>
-      </header>
+  <body class="app-body">
+    <div class="app-layout">
+      <button class="nav-mobile-toggle" id="navMobileToggle" aria-label="Open menu" type="button">☰</button>
 
-      <main class="app-main">
-        <div class="card">
-          <h2>Welcome 👋</h2>
-          <p class="text-muted" id="userEmail">Loading your account…</p>
+      <aside class="app-sidebar" id="appSidebar">
+        <div class="app-sidebar-head">
+          <a href="/" class="app-sidebar-brand">
+            <span class="app-sidebar-brand-icon">🐠</span>
+            <span class="app-sidebar-brand-text">AquaHub</span>
+          </a>
+          <button class="nav-sidebar-close" id="navSidebarClose" aria-label="Close menu" type="button">×</button>
         </div>
 
+        <nav class="app-sidebar-nav">
+          <a href="/app.html" class="active">
+            <span class="nav-icon">🏠</span>
+            <span class="nav-label">Dashboard</span>
+          </a>
+          <a href="/tanks.html">
+            <span class="nav-icon">🐠</span>
+            <span class="nav-label">My Tanks</span>
+          </a>
+          <span class="app-sidebar-disabled">
+            <span class="nav-icon">🌿</span>
+            <span class="nav-label">Species</span>
+            <span class="nav-soon">Soon</span>
+          </span>
+          <span class="app-sidebar-disabled">
+            <span class="nav-icon">📊</span>
+            <span class="nav-label">Bioload</span>
+            <span class="nav-soon">Soon</span>
+          </span>
+          <span class="app-sidebar-disabled">
+            <span class="nav-icon">📈</span>
+            <span class="nav-label">Trends</span>
+            <span class="nav-soon">Soon</span>
+          </span>
+        </nav>
+
+        <div class="app-sidebar-foot">
+          <div class="app-user" id="appUser">…</div>
+          <button class="btn-secondary btn-sidebar" id="logoutBtn" type="button">Sign Out</button>
+        </div>
+      </aside>
+
+      <div class="app-sidebar-backdrop" id="appSidebarBackdrop"></div>
+
+      <main class="app-content">
+        <header class="app-content-head">
+          <h1 class="page-title">Dashboard</h1>
+        </header>
+
+        <section class="card welcome-card">
+          <h2 id="greeting">Welcome 👋</h2>
+          <p class="text-muted" id="greetingSub">Loading your account…</p>
+        </section>
+
+        <h2 class="section-heading">Your aquariums</h2>
         <div class="dashboard-grid">
-          <a class="dashboard-tile" href="/tanks.html">
+          <a class="dashboard-tile dashboard-tile-primary" href="/tanks.html">
             <div class="dashboard-tile-icon">🐠</div>
             <div class="dashboard-tile-title">My Tanks</div>
             <div class="dashboard-tile-meta" id="tankCountMeta">—</div>
           </a>
 
-          <div class="dashboard-tile dashboard-tile-disabled" aria-disabled="true">
+          <div class="dashboard-tile dashboard-tile-disabled">
             <div class="dashboard-tile-icon">🌿</div>
             <div class="dashboard-tile-title">Species Library</div>
             <div class="dashboard-tile-meta">Coming soon</div>
           </div>
 
-          <div class="dashboard-tile dashboard-tile-disabled" aria-disabled="true">
+          <div class="dashboard-tile dashboard-tile-disabled">
             <div class="dashboard-tile-icon">📊</div>
             <div class="dashboard-tile-title">Bioload Calculator</div>
+            <div class="dashboard-tile-meta">Coming soon</div>
+          </div>
+
+          <div class="dashboard-tile dashboard-tile-disabled">
+            <div class="dashboard-tile-icon">📈</div>
+            <div class="dashboard-tile-title">Water Trends</div>
             <div class="dashboard-tile-meta">Coming soon</div>
           </div>
         </div>
@@ -48,10 +99,9 @@
 
       const user = await requireAuth();
       if (user) {
-        document.getElementById('userEmail').textContent =
-          `Signed in as ${user.email}`;
+        document.getElementById('greetingSub').textContent = `Signed in as ${user.email}`;
+        document.getElementById('appUser').textContent = user.email;
 
-        // Get tank count for the dashboard tile
         const { count } = await supabase
           .from('tanks')
           .select('*', { count: 'exact', head: true });
@@ -60,9 +110,9 @@
         if (count === null || count === undefined) {
           meta.textContent = 'View tanks';
         } else if (count === 0) {
-          meta.textContent = 'Add your first tank';
+          meta.textContent = 'Add your first tank →';
         } else {
-          meta.textContent = `${count} ${count === 1 ? 'tank' : 'tanks'}`;
+          meta.textContent = `${count} ${count === 1 ? 'tank' : 'tanks'} →`;
         }
       }
 
@@ -70,6 +120,20 @@
         await supabase.auth.signOut();
         window.location.href = '/login.html';
       });
+
+      // Mobile sidebar toggle
+      const sidebar = document.getElementById('appSidebar');
+      const backdrop = document.getElementById('appSidebarBackdrop');
+      document.getElementById('navMobileToggle').addEventListener('click', () => {
+        sidebar.classList.add('open');
+        backdrop.classList.add('open');
+      });
+      const closeNav = () => {
+        sidebar.classList.remove('open');
+        backdrop.classList.remove('open');
+      };
+      document.getElementById('navSidebarClose').addEventListener('click', closeNav);
+      backdrop.addEventListener('click', closeNav);
     </script>
   </body>
 </html>
