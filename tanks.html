@@ -4,24 +4,47 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0c4a6e" />
-    <title>AquaHub — My Tanks</title>
+    <title>My Tanks — AquaHub</title>
     <link rel="stylesheet" href="/styles.css" />
     <link rel="manifest" href="/manifest.json" />
   </head>
-  <body>
-    <div class="app-shell">
-      <header class="app-header">
-        <a href="/app.html" class="header-link">🐠 AquaHub</a>
-        <button id="logoutBtn" class="btn-link" type="button">Sign Out</button>
-      </header>
+  <body class="app-body">
+    <div class="app-layout">
+      <button class="nav-mobile-toggle" id="navMobileToggle" aria-label="Open menu" type="button">☰</button>
 
-      <main class="app-main">
-        <div class="page-head">
-          <h2 class="page-title">My Tanks</h2>
-          <button id="addTankBtn" class="btn-primary btn-inline" type="button">
-            + Add Tank
-          </button>
+      <aside class="app-sidebar" id="appSidebar">
+        <div class="app-sidebar-head">
+          <a href="/" class="app-sidebar-brand">
+            <span class="app-sidebar-brand-icon">🐠</span>
+            <span class="app-sidebar-brand-text">AquaHub</span>
+          </a>
+          <button class="nav-sidebar-close" id="navSidebarClose" aria-label="Close menu" type="button">×</button>
         </div>
+
+        <nav class="app-sidebar-nav">
+          <a href="/app.html"><span class="nav-icon">🏠</span><span class="nav-label">Dashboard</span></a>
+          <a href="/tanks.html" class="active"><span class="nav-icon">🐠</span><span class="nav-label">My Tanks</span></a>
+          <span class="app-sidebar-disabled"><span class="nav-icon">🌿</span><span class="nav-label">Species</span><span class="nav-soon">Soon</span></span>
+          <span class="app-sidebar-disabled"><span class="nav-icon">📊</span><span class="nav-label">Bioload</span><span class="nav-soon">Soon</span></span>
+          <span class="app-sidebar-disabled"><span class="nav-icon">📈</span><span class="nav-label">Trends</span><span class="nav-soon">Soon</span></span>
+        </nav>
+
+        <div class="app-sidebar-foot">
+          <div class="app-user" id="appUser">…</div>
+          <button class="btn-secondary btn-sidebar" id="logoutBtn" type="button">Sign Out</button>
+        </div>
+      </aside>
+
+      <div class="app-sidebar-backdrop" id="appSidebarBackdrop"></div>
+
+      <main class="app-content">
+        <header class="app-content-head">
+          <div>
+            <h1 class="page-title">My Tanks</h1>
+            <p class="text-muted" id="subtitle">Loading…</p>
+          </div>
+          <button id="addTankBtn" class="btn-primary btn-inline" type="button">+ Add Tank</button>
+        </header>
 
         <div id="alert" class="alert" role="alert"></div>
 
@@ -30,19 +53,14 @@
         <div id="emptyState" class="empty-state" style="display: none">
           <div class="empty-icon">🐠</div>
           <h3>No tanks yet</h3>
-          <p class="text-muted">
-            Add your first tank to start tracking livestock and water parameters.
-          </p>
-          <button class="btn-primary btn-inline" type="button" onclick="document.getElementById('addTankBtn').click()">
-            + Add Your First Tank
-          </button>
+          <p class="text-muted">Add your first tank to start tracking livestock and water parameters.</p>
+          <button class="btn-primary btn-inline" type="button" onclick="document.getElementById('addTankBtn').click()">+ Add Your First Tank</button>
         </div>
 
         <div id="tankGrid" class="tank-grid" style="display: none"></div>
       </main>
     </div>
 
-    <!-- Modal -->
     <div id="modalBackdrop" class="modal-backdrop" style="display: none">
       <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
         <div class="modal-header">
@@ -51,7 +69,6 @@
         </div>
         <div class="modal-body">
           <div id="modalAlert" class="alert" role="alert"></div>
-
           <input type="hidden" id="tankId" />
 
           <div class="form-group">
@@ -97,9 +114,7 @@
           </div>
         </div>
         <div class="modal-footer">
-          <button id="modalDeleteBtn" class="btn-danger" type="button" style="display: none">
-            Delete Tank
-          </button>
+          <button id="modalDeleteBtn" class="btn-danger" type="button" style="display: none">Delete Tank</button>
           <div class="modal-footer-right">
             <button class="btn-secondary" type="button" id="modalCancelBtn">Cancel</button>
             <button id="modalSaveBtn" class="btn-primary btn-inline" type="button">Save</button>
@@ -114,12 +129,14 @@
       const user = await requireAuth();
       if (!user) throw new Error('not authenticated');
 
-      // ---- DOM refs ----
+      document.getElementById('appUser').textContent = user.email;
+
       const grid = document.getElementById('tankGrid');
       const loadingState = document.getElementById('loadingState');
       const emptyState = document.getElementById('emptyState');
       const alertEl = document.getElementById('alert');
       const modalAlertEl = document.getElementById('modalAlert');
+      const subtitle = document.getElementById('subtitle');
 
       const modalBackdrop = document.getElementById('modalBackdrop');
       const modalTitle = document.getElementById('modalTitle');
@@ -133,10 +150,8 @@
       const tankLightingEl = document.getElementById('tankLighting');
       const tankNotesEl = document.getElementById('tankNotes');
 
-      // ---- State ----
       let tanks = [];
 
-      // ---- Helpers ----
       function showAlert(el, message, type = 'error') {
         el.textContent = message;
         el.className = `alert show alert-${type}`;
@@ -157,34 +172,37 @@
 
       function escapeHtml(s) {
         if (!s) return '';
-        return String(s)
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&#039;');
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
       }
 
-      // ---- Load tanks ----
+      function capitalize(s) {
+        return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+      }
+
+      function formatDate(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return iso;
+        return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+      }
+
       async function loadTanks() {
         loadingState.style.display = 'block';
         grid.style.display = 'none';
         emptyState.style.display = 'none';
         clearAlert(alertEl);
 
-        const { data, error } = await supabase
-          .from('tanks')
-          .select('*')
-          .order('created_at', { ascending: false });
-
+        const { data, error } = await supabase.from('tanks').select('*').order('created_at', { ascending: false });
         loadingState.style.display = 'none';
 
         if (error) {
           showAlert(alertEl, `Could not load tanks: ${error.message}`);
+          subtitle.textContent = '';
           return;
         }
 
         tanks = data || [];
+        subtitle.textContent = tanks.length === 0 ? 'No tanks yet' : `${tanks.length} ${tanks.length === 1 ? 'tank' : 'tanks'}`;
 
         if (tanks.length === 0) {
           emptyState.style.display = 'block';
@@ -196,72 +214,36 @@
       }
 
       function renderTanks() {
-        grid.innerHTML = tanks
-          .map(
-            (t) => `
+        grid.innerHTML = tanks.map((t) => `
           <article class="tank-card" data-id="${t.id}">
             <div class="tank-card-header">
               <div class="tank-card-icon">${tankTypeIcon(t.tank_type)}</div>
               <div class="tank-card-title">
                 <h3>${escapeHtml(t.name)}</h3>
-                <p class="text-muted">${tankTypeLabel(t.tank_type)}${
-              t.volume_gallons ? ` · ${t.volume_gallons}g` : ''
-            }</p>
+                <p class="text-muted">${tankTypeLabel(t.tank_type)}${t.volume_gallons ? ` · ${t.volume_gallons}g` : ''}</p>
               </div>
             </div>
             <dl class="tank-card-stats">
-              <div>
-                <dt>Setup</dt>
-                <dd>${t.setup_date ? formatDate(t.setup_date) : '—'}</dd>
-              </div>
-              <div>
-                <dt>Lighting</dt>
-                <dd>${t.lighting ? capitalize(t.lighting) : '—'}</dd>
-              </div>
+              <div><dt>Setup</dt><dd>${t.setup_date ? formatDate(t.setup_date) : '—'}</dd></div>
+              <div><dt>Lighting</dt><dd>${t.lighting ? capitalize(t.lighting) : '—'}</dd></div>
             </dl>
             <div class="tank-card-actions">
-              <button class="btn-secondary btn-sm tank-edit-btn" type="button" data-id="${t.id}">
-                Edit
-              </button>
-              <a class="btn-primary btn-sm" href="/tank.html?id=${t.id}">
-                Manage →
-              </a>
+              <button class="btn-secondary btn-sm tank-edit-btn" type="button" data-id="${t.id}">Edit</button>
+              <a class="btn-primary btn-sm" href="/tank.html?id=${t.id}">Manage →</a>
             </div>
           </article>
-        `,
-          )
-          .join('');
+        `).join('');
 
-        // Bind card-level click for editing (clicking the card body)
         grid.querySelectorAll('.tank-card').forEach((card) => {
           card.addEventListener('click', (e) => {
-            // Don't trigger if user clicked the "Manage →" link
             if (e.target.closest('a')) return;
-            const id = card.dataset.id;
-            openModal(id);
+            openModal(card.dataset.id);
           });
         });
       }
 
-      function formatDate(iso) {
-        if (!iso) return '';
-        const d = new Date(iso);
-        if (Number.isNaN(d.getTime())) return iso;
-        return d.toLocaleDateString(undefined, {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-        });
-      }
-
-      function capitalize(s) {
-        return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
-      }
-
-      // ---- Modal ----
       function openModal(tankId = null) {
         clearAlert(modalAlertEl);
-
         if (tankId) {
           const t = tanks.find((x) => x.id === tankId);
           if (!t) return;
@@ -285,7 +267,6 @@
           tankNotesEl.value = '';
           modalDeleteBtn.style.display = 'none';
         }
-
         modalBackdrop.style.display = 'flex';
         setTimeout(() => tankNameEl.focus(), 50);
       }
@@ -301,7 +282,6 @@
           tankNameEl.focus();
           return;
         }
-
         const payload = {
           user_id: user.id,
           name,
@@ -311,26 +291,17 @@
           lighting: tankLightingEl.value || null,
           notes: tankNotesEl.value.trim() || null,
         };
-
         const id = tankIdEl.value;
         let error;
-
         if (id) {
-          // Update
-          ({ error } = await supabase
-            .from('tanks')
-            .update({ ...payload, updated_at: new Date().toISOString() })
-            .eq('id', id));
+          ({ error } = await supabase.from('tanks').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', id));
         } else {
-          // Insert
           ({ error } = await supabase.from('tanks').insert(payload));
         }
-
         if (error) {
           showAlert(modalAlertEl, `Save failed: ${error.message}`);
           return;
         }
-
         closeModal();
         await loadTanks();
       }
@@ -338,28 +309,18 @@
       async function deleteTank() {
         const id = tankIdEl.value;
         if (!id) return;
-
         const t = tanks.find((x) => x.id === id);
         const name = t?.name || 'this tank';
-        if (
-          !confirm(
-            `Delete "${name}"?\n\nAll livestock and water tests for this tank will also be removed. This cannot be undone.`,
-          )
-        ) {
-          return;
-        }
-
+        if (!confirm(`Delete "${name}"?\n\nAll livestock and water tests for this tank will also be removed. This cannot be undone.`)) return;
         const { error } = await supabase.from('tanks').delete().eq('id', id);
         if (error) {
           showAlert(modalAlertEl, `Delete failed: ${error.message}`);
           return;
         }
-
         closeModal();
         await loadTanks();
       }
 
-      // ---- Event listeners ----
       document.getElementById('logoutBtn').addEventListener('click', async () => {
         await supabase.auth.signOut();
         window.location.href = '/login.html';
@@ -370,20 +331,23 @@
       document.getElementById('modalCancelBtn').addEventListener('click', closeModal);
       document.getElementById('modalSaveBtn').addEventListener('click', saveTank);
       modalDeleteBtn.addEventListener('click', deleteTank);
+      modalBackdrop.addEventListener('click', (e) => { if (e.target === modalBackdrop) closeModal(); });
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modalBackdrop.style.display !== 'none') closeModal(); });
 
-      // Close modal on backdrop click
-      modalBackdrop.addEventListener('click', (e) => {
-        if (e.target === modalBackdrop) closeModal();
+      // Mobile sidebar toggle
+      const sidebar = document.getElementById('appSidebar');
+      const sidebarBackdrop = document.getElementById('appSidebarBackdrop');
+      document.getElementById('navMobileToggle').addEventListener('click', () => {
+        sidebar.classList.add('open');
+        sidebarBackdrop.classList.add('open');
       });
+      const closeNav = () => {
+        sidebar.classList.remove('open');
+        sidebarBackdrop.classList.remove('open');
+      };
+      document.getElementById('navSidebarClose').addEventListener('click', closeNav);
+      sidebarBackdrop.addEventListener('click', closeNav);
 
-      // ESC closes modal
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && modalBackdrop.style.display !== 'none') {
-          closeModal();
-        }
-      });
-
-      // ---- Boot ----
       loadTanks();
     </script>
   </body>
