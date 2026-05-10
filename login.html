@@ -12,8 +12,10 @@
     <div class="auth-shell">
       <div class="auth-card">
         <div class="brand">
-          <div class="brand-logo">🐠</div>
-          <div class="brand-name">AquaHub</div>
+          <a href="/" class="brand-link" aria-label="AquaHub home">
+            <div class="brand-logo">🐠</div>
+            <div class="brand-name">AquaHub</div>
+          </a>
           <div class="brand-tagline">Track tanks. Do the math right.</div>
         </div>
 
@@ -26,38 +28,30 @@
 
         <div class="form-group">
           <label class="form-label" for="email">Email</label>
-          <input
-            id="email"
-            type="email"
-            class="form-input"
-            autocomplete="email"
-            required
-          />
+          <input id="email" type="email" class="form-input" autocomplete="email" required />
         </div>
 
         <div class="form-group">
           <label class="form-label" for="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            class="form-input"
-            autocomplete="current-password"
-            minlength="8"
-            required
-          />
+          <input id="password" type="password" class="form-input" autocomplete="current-password" minlength="8" required />
         </div>
 
         <button id="submitBtn" class="btn-primary" type="button">Sign In</button>
+
+        <p class="auth-foot">
+          <a href="/">← Back to home</a>
+        </p>
       </div>
     </div>
 
     <script type="module">
       import { supabase, redirectIfAuthed } from '/lib/supabase.js';
 
-      // If already logged in, skip straight to the app.
       await redirectIfAuthed();
 
-      let mode = 'signin';
+      const params = new URLSearchParams(window.location.search);
+      let mode = params.get('mode') === 'signup' ? 'signup' : 'signin';
+
       const tabs = document.querySelectorAll('.auth-tab');
       const submitBtn = document.getElementById('submitBtn');
       const alertEl = document.getElementById('alert');
@@ -66,12 +60,9 @@
 
       function setMode(newMode) {
         mode = newMode;
-        tabs.forEach((t) =>
-          t.classList.toggle('active', t.dataset.mode === mode)
-        );
+        tabs.forEach((t) => t.classList.toggle('active', t.dataset.mode === mode));
         submitBtn.textContent = mode === 'signin' ? 'Sign In' : 'Create Account';
-        passwordEl.autocomplete =
-          mode === 'signin' ? 'current-password' : 'new-password';
+        passwordEl.autocomplete = mode === 'signin' ? 'current-password' : 'new-password';
         clearAlert();
       }
 
@@ -88,6 +79,9 @@
       tabs.forEach((tab) => {
         tab.addEventListener('click', () => setMode(tab.dataset.mode));
       });
+
+      // Apply initial mode from URL
+      setMode(mode);
 
       async function handleSubmit() {
         const email = emailEl.value.trim();
@@ -108,22 +102,16 @@
 
         try {
           if (mode === 'signin') {
-            const { error } = await supabase.auth.signInWithPassword({
-              email,
-              password,
-            });
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
             if (error) throw error;
             window.location.href = '/app.html';
           } else {
-            const { data, error } = await supabase.auth.signUp({
-              email,
-              password,
-            });
+            const { data, error } = await supabase.auth.signUp({ email, password });
             if (error) throw error;
             if (data.user && !data.session) {
               showAlert(
                 'Check your email to confirm your account, then sign in.',
-                'success'
+                'success',
               );
               setMode('signin');
             } else {
@@ -140,7 +128,6 @@
 
       submitBtn.addEventListener('click', handleSubmit);
 
-      // Allow Enter to submit from either field.
       [emailEl, passwordEl].forEach((el) => {
         el.addEventListener('keydown', (e) => {
           if (e.key === 'Enter') handleSubmit();
