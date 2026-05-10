@@ -11,7 +11,7 @@
   <body>
     <div class="app-shell">
       <header class="app-header">
-        <h1>🐠 AquaHub</h1>
+        <span class="header-link">🐠 AquaHub</span>
         <button id="logoutBtn" class="btn-link" type="button">Sign Out</button>
       </header>
 
@@ -21,12 +21,24 @@
           <p class="text-muted" id="userEmail">Loading your account…</p>
         </div>
 
-        <div class="card">
-          <h2>What's next</h2>
-          <p class="text-muted">
-            Tanks, livestock, and water tests are coming soon. This is the
-            account shell — auth and database are wired up.
-          </p>
+        <div class="dashboard-grid">
+          <a class="dashboard-tile" href="/tanks.html">
+            <div class="dashboard-tile-icon">🐠</div>
+            <div class="dashboard-tile-title">My Tanks</div>
+            <div class="dashboard-tile-meta" id="tankCountMeta">—</div>
+          </a>
+
+          <div class="dashboard-tile dashboard-tile-disabled" aria-disabled="true">
+            <div class="dashboard-tile-icon">🌿</div>
+            <div class="dashboard-tile-title">Species Library</div>
+            <div class="dashboard-tile-meta">Coming soon</div>
+          </div>
+
+          <div class="dashboard-tile dashboard-tile-disabled" aria-disabled="true">
+            <div class="dashboard-tile-icon">📊</div>
+            <div class="dashboard-tile-title">Bioload Calculator</div>
+            <div class="dashboard-tile-meta">Coming soon</div>
+          </div>
         </div>
       </main>
     </div>
@@ -38,6 +50,20 @@
       if (user) {
         document.getElementById('userEmail').textContent =
           `Signed in as ${user.email}`;
+
+        // Get tank count for the dashboard tile
+        const { count } = await supabase
+          .from('tanks')
+          .select('*', { count: 'exact', head: true });
+
+        const meta = document.getElementById('tankCountMeta');
+        if (count === null || count === undefined) {
+          meta.textContent = 'View tanks';
+        } else if (count === 0) {
+          meta.textContent = 'Add your first tank';
+        } else {
+          meta.textContent = `${count} ${count === 1 ? 'tank' : 'tanks'}`;
+        }
       }
 
       document.getElementById('logoutBtn').addEventListener('click', async () => {
