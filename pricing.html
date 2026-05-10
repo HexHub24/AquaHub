@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0c4a6e" />
+    <title>Pricing — AquaHub</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/marketing.css" />
+  </head>
+  <body class="marketing-body">
+    <header class="marketing-header">
+      <div class="marketing-container marketing-nav">
+        <a href="/" class="marketing-logo">
+          <span class="marketing-logo-icon">🐠</span>
+          <span class="marketing-logo-text">AquaHub</span>
+        </a>
+        <nav class="marketing-nav-links" id="navLinks">
+          <a href="/features.html">Features</a>
+          <a href="/pricing.html" class="active">Pricing</a>
+          <a href="/about.html">About</a>
+        </nav>
+        <div class="marketing-nav-cta">
+          <a href="/login.html" class="btn-secondary btn-inline">Sign In</a>
+          <a href="/login.html?mode=signup" class="btn-primary btn-inline">Sign Up</a>
+        </div>
+        <button class="marketing-nav-toggle" id="navToggle" aria-label="Toggle menu" type="button">☰</button>
+      </div>
+    </header>
+
+    <section class="pricing-hero">
+      <div class="marketing-container">
+        <h1>Pricing</h1>
+        <p class="pricing-lead">
+          Free to start. No credit card required. Pro features coming soon.
+        </p>
+      </div>
+    </section>
+
+    <section class="pricing-cards">
+      <div class="marketing-container">
+        <div class="pricing-grid">
+          <article class="pricing-card">
+            <header class="pricing-card-head">
+              <h3>Free</h3>
+              <p class="pricing-price">$0<span>/forever</span></p>
+              <p class="pricing-tagline">Everything you need to start tracking.</p>
+            </header>
+            <ul class="pricing-features">
+              <li>✓ Unlimited tanks</li>
+              <li>✓ Unlimited livestock</li>
+              <li>✓ Water test logging</li>
+              <li>✓ Basic species library</li>
+              <li>✓ Mobile, tablet, desktop</li>
+              <li>✓ Your data, private</li>
+            </ul>
+            <a href="/login.html?mode=signup" class="btn-primary btn-large pricing-btn">Get started free</a>
+          </article>
+
+          <article class="pricing-card pricing-card-featured">
+            <div class="pricing-badge">Coming soon</div>
+            <header class="pricing-card-head">
+              <h3>Pro</h3>
+              <p class="pricing-price">TBD</p>
+              <p class="pricing-tagline">Power features for serious aquarists.</p>
+            </header>
+            <ul class="pricing-features">
+              <li>✓ Everything in Free</li>
+              <li>✓ Bioload calculator</li>
+              <li>✓ Plant offset math</li>
+              <li>✓ Full species library (400+)</li>
+              <li>✓ Water test charts &amp; trends</li>
+              <li>✓ Photo logs</li>
+              <li>✓ Maintenance reminders</li>
+              <li>✓ Export your data</li>
+            </ul>
+            <button class="btn-secondary btn-large pricing-btn" disabled>Coming soon</button>
+          </article>
+        </div>
+
+        <p class="pricing-fineprint">
+          AquaHub is in active development. Pricing for Pro will be set when those features ship — likely a one-time unlock or a low monthly subscription. Early users will get a discount.
+        </p>
+      </div>
+    </section>
+
+    <footer class="marketing-footer">
+      <div class="marketing-container">
+        <div class="footer-bottom">
+          <p>© 2026 AquaHub. Built by a hobbyist, for hobbyists.</p>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      document.getElementById('navToggle')?.addEventListener('click', () => {
+        document.getElementById('navLinks').classList.toggle('open');
+      });
+    </script>
+  </body>
+</html>

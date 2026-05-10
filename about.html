@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0c4a6e" />
+    <title>About — AquaHub</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/marketing.css" />
+  </head>
+  <body class="marketing-body">
+    <header class="marketing-header">
+      <div class="marketing-container marketing-nav">
+        <a href="/" class="marketing-logo">
+          <span class="marketing-logo-icon">🐠</span>
+          <span class="marketing-logo-text">AquaHub</span>
+        </a>
+        <nav class="marketing-nav-links" id="navLinks">
+          <a href="/features.html">Features</a>
+          <a href="/pricing.html">Pricing</a>
+          <a href="/about.html" class="active">About</a>
+        </nav>
+        <div class="marketing-nav-cta">
+          <a href="/login.html" class="btn-secondary btn-inline">Sign In</a>
+          <a href="/login.html?mode=signup" class="btn-primary btn-inline">Sign Up</a>
+        </div>
+        <button class="marketing-nav-toggle" id="navToggle" aria-label="Toggle menu" type="button">☰</button>
+      </div>
+    </header>
+
+    <main class="prose-page">
+      <div class="marketing-container prose-container">
+        <h1>About AquaHub</h1>
+        <p class="prose-lead">
+          AquaHub is built by a hobbyist who got tired of every other aquarium app being either a glorified notebook or a scammy ad-fest. The whole point of this app is to do the math right — and stay out of your way the rest of the time.
+        </p>
+
+        <h2>Why we built this</h2>
+        <p>
+          If you've kept fish for any length of time you've probably hit the same frustration: the apps that exist for aquarium tracking are either bare-bones note-takers, or they're crammed with ads, or they have generic species data that's missing the parameters that actually matter — bioload contribution, nitrate output, plant offset, parameter ranges that are actually accurate.
+        </p>
+        <p>
+          AquaHub started as a personal project to track tanks across a household. Once we had it working, it was obvious that any aquarist would benefit. So we cleaned it up, gave it real bioload calculations, and shipped it.
+        </p>
+
+        <h2>What's different</h2>
+        <ul>
+          <li><strong>The math is real.</strong> Bioload scoring is calculated from species data, not made up. Plant offset uses actual nitrate uptake numbers from aquaponics research.</li>
+          <li><strong>The species data is curated.</strong> We're not scraping competitor sites — every species record is reviewed for accuracy.</li>
+          <li><strong>No ads, ever.</strong> AquaHub is freemium. The free tier is genuinely useful. The paid tier unlocks advanced features for power users.</li>
+          <li><strong>Privacy-first.</strong> We don't sell your data. We don't track you across the web. Your tanks are yours.</li>
+        </ul>
+
+        <h2>What's coming</h2>
+        <p>
+          AquaHub is actively being built. The current version handles tanks and the foundation for livestock, water tests, and bioload. Soon: full bioload calculator, water test history with charts, photo logs, maintenance reminders, and the species library going public.
+        </p>
+
+        <p class="prose-cta">
+          <a href="/login.html?mode=signup" class="btn-primary btn-large">Get started free</a>
+        </p>
+      </div>
+    </main>
+
+    <footer class="marketing-footer">
+      <div class="marketing-container">
+        <div class="footer-bottom">
+          <p>© 2026 AquaHub. Built by a hobbyist, for hobbyists.</p>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      document.getElementById('navToggle')?.addEventListener('click', () => {
+        document.getElementById('navLinks').classList.toggle('open');
+      });
+    </script>
+  </body>
+</html>

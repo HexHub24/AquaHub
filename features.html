@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0c4a6e" />
+    <title>Features — AquaHub</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/marketing.css" />
+  </head>
+  <body class="marketing-body">
+    <header class="marketing-header">
+      <div class="marketing-container marketing-nav">
+        <a href="/" class="marketing-logo">
+          <span class="marketing-logo-icon">🐠</span>
+          <span class="marketing-logo-text">AquaHub</span>
+        </a>
+        <nav class="marketing-nav-links" id="navLinks">
+          <a href="/features.html" class="active">Features</a>
+          <a href="/pricing.html">Pricing</a>
+          <a href="/about.html">About</a>
+        </nav>
+        <div class="marketing-nav-cta">
+          <a href="/login.html" class="btn-secondary btn-inline">Sign In</a>
+          <a href="/login.html?mode=signup" class="btn-primary btn-inline">Sign Up</a>
+        </div>
+        <button class="marketing-nav-toggle" id="navToggle" aria-label="Toggle menu" type="button">☰</button>
+      </div>
+    </header>
+
+    <main class="prose-page">
+      <div class="marketing-container prose-container">
+        <h1>What AquaHub does</h1>
+        <p class="prose-lead">
+          A quick walkthrough of the features available now and what's coming next.
+        </p>
+
+        <h2>📦 Tank tracking</h2>
+        <p>
+          Add as many tanks as you want — freshwater, saltwater, reef, or planted. Each tank tracks its volume, setup date, lighting level, and notes. Switch between them, edit on the fly, archive ones you've torn down.
+        </p>
+        <p class="feature-status feature-status-live">Available now</p>
+
+        <h2>🐠 Livestock management</h2>
+        <p>
+          Add fish, inverts, plants, and corals to each tank. Pick from the curated species library or add custom entries. Track quantities, added dates, and notes per species. AquaHub automatically warns about parameter mismatches and incompatible tankmates.
+        </p>
+        <p class="feature-status feature-status-soon">Coming soon</p>
+
+        <h2>📈 Water parameter logging</h2>
+        <p>
+          Log temperature, pH, ammonia, nitrite, nitrate, gH, and kH from your test kits. AquaHub builds trend charts, flags concerning values, and reminds you when it's time to test again.
+        </p>
+        <p class="feature-status feature-status-soon">Coming soon</p>
+
+        <h2>📊 Bioload calculator</h2>
+        <p>
+          The headline feature. AquaHub takes your tank volume, livestock species, and quantities and gives you a real bioload score — not "you're fully stocked" vibes. Based on actual nitrate output by species, weighted by adult size and metabolism.
+        </p>
+        <p>
+          You'll know exactly how much capacity you have before adding more fish, and AquaHub explains why each species contributes what it does.
+        </p>
+        <p class="feature-status feature-status-soon">Coming soon (Pro)</p>
+
+        <h2>🌿 Plant nitrate offset</h2>
+        <p>
+          Live plants — especially pothos with roots in the water — meaningfully reduce nitrate. AquaHub calculates how much offset you're getting based on plant species, leaf count, light level, and tank conditions. Built on real aquaponics research, not folklore.
+        </p>
+        <p class="feature-status feature-status-soon">Coming soon (Pro)</p>
+
+        <h2>📚 Species library</h2>
+        <p>
+          Hundreds of species with care levels, parameter ranges, adult size, temperament, and compatibility. Search and filter to plan your next stocking decision before you go to the store.
+        </p>
+        <p class="feature-status feature-status-soon">Coming soon</p>
+
+        <h2>📱 Phone, tablet, desktop</h2>
+        <p>
+          Same app everywhere. Add it to your home screen on iOS or Android and it feels like a native app — works offline for viewing, syncs when you reconnect.
+        </p>
+        <p class="feature-status feature-status-live">Available now</p>
+
+        <p class="prose-cta">
+          <a href="/login.html?mode=signup" class="btn-primary btn-large">Try AquaHub free</a>
+        </p>
+      </div>
+    </main>
+
+    <footer class="marketing-footer">
+      <div class="marketing-container">
+        <div class="footer-bottom">
+          <p>© 2026 AquaHub. Built by a hobbyist, for hobbyists.</p>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      document.getElementById('navToggle')?.addEventListener('click', () => {
+        document.getElementById('navLinks').classList.toggle('open');
+      });
+    </script>
+  </body>
+</html>
