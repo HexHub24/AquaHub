@@ -205,12 +205,11 @@
       const params = new URLSearchParams(window.location.search);
       const tankId = params.get('id');
 
-      // ---- Top-level DOM ----
+      // ---- DOM refs ----
       const loadingState = document.getElementById('loadingState');
       const errorState = document.getElementById('errorState');
       const content = document.getElementById('content');
 
-      // ---- Livestock DOM ----
       const livestockStats = document.getElementById('livestockStats');
       const livestockEmpty = document.getElementById('livestockEmpty');
       const livestockGroups = document.getElementById('livestockGroups');
@@ -235,8 +234,18 @@
 
       // ---- State ----
       let livestock = [];
-      let selectedSpecies = null; // {id, common_name, ...} OR null for custom
+      let selectedSpecies = null;
       let searchTimeout;
+
+      // ---- Categories (declared early; functions below reference these) ----
+      const CATEGORY_ORDER = ['fish', 'invertebrate', 'plant', 'coral', 'other'];
+      const CATEGORY_LABELS = {
+        fish: { label: 'Fish', icon: '🐟', plural: 'fish' },
+        invertebrate: { label: 'Inverts', icon: '🦐', plural: 'inverts' },
+        plant: { label: 'Plants', icon: '🌿', plural: 'plants' },
+        coral: { label: 'Corals', icon: '🪸', plural: 'corals' },
+        other: { label: 'Other', icon: '✨', plural: 'other' },
+      };
 
       // ---- Helpers ----
       function escapeHtml(s) {
@@ -264,6 +273,16 @@
       function clearAlert(el) {
         el.className = 'alert';
         el.textContent = '';
+      }
+      function categoryOf(item) {
+        if (item.species && item.species.species_type) return item.species.species_type;
+        return 'other';
+      }
+      function displayName(item) {
+        return item.species?.common_name || item.custom_name || 'Unknown';
+      }
+      function scientificName(item) {
+        return item.species?.scientific_name || null;
       }
 
       // ---- Tank load ----
@@ -323,30 +342,7 @@
         renderLivestock();
       }
 
-      function categoryOf(item) {
-        if (item.species && item.species.species_type) return item.species.species_type;
-        return 'other';
-      }
-
-      function displayName(item) {
-        return item.species?.common_name || item.custom_name || 'Unknown';
-      }
-
-      function scientificName(item) {
-        return item.species?.scientific_name || null;
-      }
-
-      const CATEGORY_ORDER = ['fish', 'invertebrate', 'plant', 'coral', 'other'];
-      const CATEGORY_LABELS = {
-        fish: { label: 'Fish', icon: '🐟', plural: 'fish' },
-        invertebrate: { label: 'Inverts', icon: '🦐', plural: 'inverts' },
-        plant: { label: 'Plants', icon: '🌿', plural: 'plants' },
-        coral: { label: 'Corals', icon: '🪸', plural: 'corals' },
-        other: { label: 'Other', icon: '✨', plural: 'other' },
-      };
-
       function renderLivestock() {
-        // Group
         const groups = {};
         for (const item of livestock) {
           const cat = categoryOf(item);
@@ -354,7 +350,6 @@
           groups[cat].push(item);
         }
 
-        // Stats
         livestockStats.innerHTML = CATEGORY_ORDER.filter((c) => groups[c]?.length)
           .map((cat) => {
             const meta = CATEGORY_LABELS[cat];
@@ -363,7 +358,6 @@
           })
           .join('');
 
-        // Empty / groups
         if (livestock.length === 0) {
           livestockEmpty.style.display = 'block';
           livestockGroups.innerHTML = '';
@@ -408,7 +402,6 @@
           })
           .join('');
 
-        // Click → edit
         livestockGroups.querySelectorAll('.livestock-item').forEach((row) => {
           row.addEventListener('click', () => {
             openEditModal(row.dataset.id);
@@ -472,7 +465,7 @@
 
         speciesResults.querySelectorAll('.typeahead-item').forEach((el) => {
           el.addEventListener('mousedown', (e) => {
-            e.preventDefault(); // don't blur the input
+            e.preventDefault();
             selectSpecies({
               id: parseInt(el.dataset.id, 10),
               common_name: el.dataset.name,
@@ -491,7 +484,6 @@
 
       speciesSearch.addEventListener('input', (e) => {
         const value = e.target.value.trim();
-        // If user edits, clear any prior library selection
         if (selectedSpecies && value !== selectedSpecies.common_name) {
           selectedSpecies = null;
           speciesHint.textContent = value
@@ -513,7 +505,6 @@
       });
 
       speciesSearch.addEventListener('blur', () => {
-        // delay so click on result has a chance to fire
         setTimeout(() => { speciesResults.hidden = true; }, 150);
       });
 
@@ -645,7 +636,6 @@
         window.location.href = '/login.html';
       });
 
-      // Mobile sidebar
       const sidebar = document.getElementById('appSidebar');
       const sidebarBackdrop = document.getElementById('appSidebarBackdrop');
       document.getElementById('navMobileToggle').addEventListener('click', () => {
