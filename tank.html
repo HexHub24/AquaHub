@@ -113,19 +113,37 @@
         <div class="modal-body">
           <div id="addModalAlert" class="alert" role="alert"></div>
 
-          <div class="form-group">
-            <label class="form-label" for="speciesSearch">Species</label>
+          <!-- Step indicator: are we picking species, or filling details? -->
+          <div id="selectedSpeciesPanel" class="selected-species-panel" style="display: none">
+            <div class="selected-species-info">
+              <div class="selected-species-label">Selected species</div>
+              <div class="selected-species-name" id="selectedSpeciesName">—</div>
+              <div class="selected-species-meta" id="selectedSpeciesMeta"></div>
+            </div>
+            <button type="button" class="btn-link-inline" id="changeSpeciesBtn">Change</button>
+          </div>
+
+          <div class="form-group" id="speciesSearchGroup">
+            <label class="form-label" for="speciesSearch">Search the species library</label>
             <div class="typeahead-wrap">
               <input
                 id="speciesSearch"
                 type="text"
                 class="form-input"
-                placeholder="Type to search the library, or enter custom name"
+                placeholder="Start typing a species name…"
                 autocomplete="off"
               />
-              <ul id="speciesResults" class="typeahead-results" hidden></ul>
+              <ul id="speciesResults" class="typeahead-results" hidden role="listbox"></ul>
             </div>
-            <p class="form-hint" id="speciesHint">Start typing — pick from the library or use your own name.</p>
+            <p class="form-hint" id="speciesHint">↑↓ to highlight · Enter to select · or click a result</p>
+            <button
+              type="button"
+              id="useCustomBtn"
+              class="custom-fallback"
+              style="display: none"
+            >
+              Not in the library? Use "<span id="customNamePreview"></span>" as a custom entry →
+            </button>
           </div>
 
           <div class="form-row">
@@ -147,7 +165,7 @@
         <div class="modal-footer">
           <div class="modal-footer-right">
             <button class="btn-secondary" type="button" id="addModalCancelBtn">Cancel</button>
-            <button id="addModalSaveBtn" class="btn-primary btn-inline" type="button">Add to Tank</button>
+            <button id="addModalSaveBtn" class="btn-primary btn-inline" type="button" disabled>Add to Tank</button>
           </div>
         </div>
       </div>
@@ -217,9 +235,19 @@
 
       const addModal = document.getElementById('addModal');
       const addModalAlert = document.getElementById('addModalAlert');
+      const addSaveBtn = document.getElementById('addModalSaveBtn');
+      const speciesSearchGroup = document.getElementById('speciesSearchGroup');
+      const selectedSpeciesPanel = document.getElementById('selectedSpeciesPanel');
+      const selectedSpeciesName = document.getElementById('selectedSpeciesName');
+      const selectedSpeciesMeta = document.getElementById('selectedSpeciesMeta');
+      const changeSpeciesBtn = document.getElementById('changeSpeciesBtn');
+
       const speciesSearch = document.getElementById('speciesSearch');
       const speciesResults = document.getElementById('speciesResults');
       const speciesHint = document.getElementById('speciesHint');
+      const useCustomBtn = document.getElementById('useCustomBtn');
+      const customNamePreview = document.getElementById('customNamePreview');
+
       const livestockQuantity = document.getElementById('livestockQuantity');
       const livestockAddedDate = document.getElementById('livestockAddedDate');
       const livestockNotes = document.getElementById('livestockNotes');
@@ -234,10 +262,11 @@
 
       // ---- State ----
       let livestock = [];
-      let selectedSpecies = null;
+      let selectedSpecies = null; // {id, common_name, species_type, water_type} or {custom: true, name: '...'}
+      let currentResults = []; // species objects currently shown in typeahead
+      let highlightIndex = -1;
       let searchTimeout;
 
-      // ---- Categories (declared early; functions below reference these) ----
       const CATEGORY_ORDER = ['fish', 'invertebrate', 'plant', 'coral', 'other'];
       const CATEGORY_LABELS = {
         fish: { label: 'Fish', icon: '🐟', plural: 'fish' },
@@ -317,7 +346,6 @@
           }
           loadingState.style.display = 'none';
           content.style.display = 'block';
-
           await loadLivestock();
         }
       }
@@ -337,7 +365,6 @@
           renderLivestock();
           return;
         }
-
         livestock = data || [];
         renderLivestock();
       }
@@ -368,9 +395,7 @@
         livestockGroups.innerHTML = CATEGORY_ORDER.filter((c) => groups[c]?.length)
           .map((cat) => {
             const meta = CATEGORY_LABELS[cat];
-            const items = groups[cat]
-              .slice()
-              .sort((a, b) => displayName(a).localeCompare(displayName(b)));
+            const items = groups[cat].slice().sort((a, b) => displayName(a).localeCompare(displayName(b)));
             return `
               <section class="livestock-group">
                 <h3 class="livestock-group-head">
@@ -378,10 +403,9 @@
                   <span class="livestock-group-count">${items.length}</span>
                 </h3>
                 <ul class="livestock-list">
-                  ${items
-                    .map((it) => {
-                      const sci = scientificName(it);
-                      return `
+                  ${items.map((it) => {
+                    const sci = scientificName(it);
+                    return `
                       <li class="livestock-item" data-id="${it.id}">
                         <div class="livestock-item-main">
                           <div class="livestock-item-name">
@@ -394,8 +418,7 @@
                         <div class="livestock-item-qty">×${it.quantity}</div>
                       </li>
                     `;
-                    })
-                    .join('')}
+                  }).join('')}
                 </ul>
               </section>
             `;
@@ -403,13 +426,11 @@
           .join('');
 
         livestockGroups.querySelectorAll('.livestock-item').forEach((row) => {
-          row.addEventListener('click', () => {
-            openEditModal(row.dataset.id);
-          });
+          row.addEventListener('click', () => openEditModal(row.dataset.id));
         });
       }
 
-      // ---- Add modal ----
+      // ---- Add modal: open/close + selection state ----
       function openAddModal() {
         clearAlert(addModalAlert);
         speciesSearch.value = '';
@@ -417,8 +438,14 @@
         livestockAddedDate.value = '';
         livestockNotes.value = '';
         selectedSpecies = null;
-        speciesHint.textContent = 'Start typing — pick from the library or use your own name.';
+        currentResults = [];
+        highlightIndex = -1;
+        useCustomBtn.style.display = 'none';
+        speciesHint.textContent = '↑↓ to highlight · Enter to select · or click a result';
         speciesResults.hidden = true;
+        addSaveBtn.disabled = true;
+        selectedSpeciesPanel.style.display = 'none';
+        speciesSearchGroup.style.display = '';
         addModal.style.display = 'flex';
         setTimeout(() => speciesSearch.focus(), 50);
       }
@@ -427,9 +454,52 @@
         addModal.style.display = 'none';
       }
 
+      function setSelected(species) {
+        // species is either a row from species table, or {custom: true, name: '...'}
+        selectedSpecies = species;
+        speciesSearchGroup.style.display = 'none';
+        selectedSpeciesPanel.style.display = 'flex';
+
+        if (species.custom) {
+          selectedSpeciesName.innerHTML = `${escapeHtml(species.name)} <span class="custom-badge">custom</span>`;
+          selectedSpeciesMeta.textContent = 'Not in the library — added as a custom entry.';
+        } else {
+          selectedSpeciesName.textContent = species.common_name;
+          const parts = [];
+          if (species.species_type) parts.push(capitalize(species.species_type));
+          if (species.water_type) parts.push(capitalize(species.water_type));
+          if (species.scientific_name) parts.push(`<em>${escapeHtml(species.scientific_name)}</em>`);
+          selectedSpeciesMeta.innerHTML = parts.join(' · ');
+        }
+
+        addSaveBtn.disabled = false;
+        // Move focus to quantity so user can keep going
+        setTimeout(() => livestockQuantity.focus(), 50);
+      }
+
+      function clearSelected() {
+        selectedSpecies = null;
+        selectedSpeciesPanel.style.display = 'none';
+        speciesSearchGroup.style.display = '';
+        addSaveBtn.disabled = true;
+        speciesSearch.value = '';
+        useCustomBtn.style.display = 'none';
+        currentResults = [];
+        highlightIndex = -1;
+        speciesResults.hidden = true;
+        speciesHint.textContent = '↑↓ to highlight · Enter to select · or click a result';
+        setTimeout(() => speciesSearch.focus(), 50);
+      }
+
+      changeSpeciesBtn.addEventListener('click', clearSelected);
+
+      // ---- Typeahead ----
       async function searchSpecies(query) {
         if (!query || query.length < 2) {
+          currentResults = [];
+          highlightIndex = -1;
           speciesResults.hidden = true;
+          useCustomBtn.style.display = 'none';
           return;
         }
         const { data, error } = await supabase
@@ -440,67 +510,108 @@
           .limit(8);
 
         if (error) {
+          currentResults = [];
           speciesResults.hidden = true;
           return;
         }
 
-        if (!data || data.length === 0) {
-          speciesResults.innerHTML = `<li class="typeahead-empty">No matches in library — "${escapeHtml(query)}" will be added as a custom entry.</li>`;
-          speciesResults.hidden = false;
+        currentResults = data || [];
+        highlightIndex = currentResults.length > 0 ? 0 : -1;
+
+        if (currentResults.length === 0) {
+          speciesResults.innerHTML = '';
+          speciesResults.hidden = true;
+          // Show "use custom" fallback
+          customNamePreview.textContent = query;
+          useCustomBtn.style.display = 'block';
+          speciesHint.textContent = `No matches in library for "${query}"`;
           return;
         }
 
-        speciesResults.innerHTML = data
+        useCustomBtn.style.display = 'none';
+        speciesHint.textContent = `${currentResults.length} match${currentResults.length === 1 ? '' : 'es'} · ↑↓ to highlight, Enter to select`;
+        renderResults();
+        speciesResults.hidden = false;
+      }
+
+      function renderResults() {
+        speciesResults.innerHTML = currentResults
           .map(
-            (s) => `
-          <li class="typeahead-item" data-id="${s.id}" data-name="${escapeHtml(s.common_name)}" data-type="${s.species_type}">
-            <div class="typeahead-name">${escapeHtml(s.common_name)}</div>
-            ${s.scientific_name ? `<div class="typeahead-sci">${escapeHtml(s.scientific_name)}</div>` : ''}
-            <div class="typeahead-meta">${capitalize(s.species_type)} · ${capitalize(s.water_type)}</div>
-          </li>
-        `,
+            (s, i) => `
+              <li class="typeahead-item${i === highlightIndex ? ' active' : ''}"
+                  data-index="${i}"
+                  role="option"
+                  aria-selected="${i === highlightIndex}">
+                <div class="typeahead-name">${escapeHtml(s.common_name)}</div>
+                ${s.scientific_name ? `<div class="typeahead-sci">${escapeHtml(s.scientific_name)}</div>` : ''}
+                <div class="typeahead-meta">${capitalize(s.species_type)} · ${capitalize(s.water_type)}</div>
+                <div class="typeahead-pick">Pick</div>
+              </li>
+            `,
           )
           .join('');
-        speciesResults.hidden = false;
 
         speciesResults.querySelectorAll('.typeahead-item').forEach((el) => {
+          const idx = parseInt(el.dataset.index, 10);
           el.addEventListener('mousedown', (e) => {
             e.preventDefault();
-            selectSpecies({
-              id: parseInt(el.dataset.id, 10),
-              common_name: el.dataset.name,
-              species_type: el.dataset.type,
-            });
+            setSelected(currentResults[idx]);
+          });
+          el.addEventListener('mouseenter', () => {
+            highlightIndex = idx;
+            updateHighlight();
           });
         });
       }
 
-      function selectSpecies(s) {
-        selectedSpecies = s;
-        speciesSearch.value = s.common_name;
-        speciesHint.innerHTML = `From library: <strong>${escapeHtml(s.common_name)}</strong>`;
-        speciesResults.hidden = true;
+      function updateHighlight() {
+        speciesResults.querySelectorAll('.typeahead-item').forEach((el, i) => {
+          el.classList.toggle('active', i === highlightIndex);
+          el.setAttribute('aria-selected', i === highlightIndex);
+        });
       }
 
       speciesSearch.addEventListener('input', (e) => {
         const value = e.target.value.trim();
-        if (selectedSpecies && value !== selectedSpecies.common_name) {
-          selectedSpecies = null;
-          speciesHint.textContent = value
-            ? `Will add as custom: "${value}"`
-            : 'Start typing — pick from the library or use your own name.';
-        } else if (!selectedSpecies) {
-          speciesHint.textContent = value
-            ? `Will add as custom: "${value}"`
-            : 'Start typing — pick from the library or use your own name.';
-        }
         clearTimeout(searchTimeout);
+        if (value.length < 2) {
+          speciesResults.hidden = true;
+          useCustomBtn.style.display = 'none';
+          speciesHint.textContent = 'Keep typing — at least 2 characters';
+          return;
+        }
+        speciesHint.textContent = 'Searching…';
         searchTimeout = setTimeout(() => searchSpecies(value), 180);
       });
 
-      speciesSearch.addEventListener('focus', (e) => {
-        if (e.target.value.trim().length >= 2 && !selectedSpecies) {
-          searchSpecies(e.target.value.trim());
+      speciesSearch.addEventListener('keydown', (e) => {
+        if (speciesResults.hidden || currentResults.length === 0) {
+          // If no results but Enter pressed and "use custom" button is showing, trigger it
+          if (e.key === 'Enter' && useCustomBtn.style.display === 'block') {
+            e.preventDefault();
+            const name = speciesSearch.value.trim();
+            if (name) setSelected({ custom: true, name });
+          }
+          return;
+        }
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          highlightIndex = (highlightIndex + 1) % currentResults.length;
+          updateHighlight();
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          highlightIndex = (highlightIndex - 1 + currentResults.length) % currentResults.length;
+          updateHighlight();
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (highlightIndex >= 0 && currentResults[highlightIndex]) {
+            setSelected(currentResults[highlightIndex]);
+          }
+        } else if (e.key === 'Escape') {
+          if (!speciesResults.hidden) {
+            speciesResults.hidden = true;
+            e.stopPropagation(); // don't close modal yet
+          }
         }
       });
 
@@ -508,34 +619,42 @@
         setTimeout(() => { speciesResults.hidden = true; }, 150);
       });
 
+      speciesSearch.addEventListener('focus', () => {
+        if (currentResults.length > 0) speciesResults.hidden = false;
+      });
+
+      useCustomBtn.addEventListener('click', () => {
+        const name = speciesSearch.value.trim();
+        if (name) setSelected({ custom: true, name });
+      });
+
+      // ---- Save Add ----
       async function saveAdd() {
         clearAlert(addModalAlert);
+        if (!selectedSpecies) {
+          showAlert(addModalAlert, 'Pick a species or use a custom entry first.');
+          return;
+        }
         const qty = parseInt(livestockQuantity.value, 10);
         if (!qty || qty < 1) {
           showAlert(addModalAlert, 'Quantity must be at least 1.');
           return;
         }
-        const customName = speciesSearch.value.trim();
-        if (!selectedSpecies && !customName) {
-          showAlert(addModalAlert, 'Pick a species from the library or type a custom name.');
-          return;
-        }
 
-        const saveBtn = document.getElementById('addModalSaveBtn');
-        saveBtn.disabled = true;
-        saveBtn.textContent = 'Adding…';
+        addSaveBtn.disabled = true;
+        addSaveBtn.textContent = 'Adding…';
 
         const { error } = await supabase.rpc('upsert_livestock', {
           p_tank_id: tankId,
-          p_species_id: selectedSpecies ? selectedSpecies.id : null,
-          p_custom_name: selectedSpecies ? null : customName,
+          p_species_id: selectedSpecies.custom ? null : selectedSpecies.id,
+          p_custom_name: selectedSpecies.custom ? selectedSpecies.name : null,
           p_quantity: qty,
           p_added_date: livestockAddedDate.value || null,
           p_notes: livestockNotes.value.trim() || null,
         });
 
-        saveBtn.disabled = false;
-        saveBtn.textContent = 'Add to Tank';
+        addSaveBtn.disabled = false;
+        addSaveBtn.textContent = 'Add to Tank';
 
         if (error) {
           showAlert(addModalAlert, `Could not add: ${error.message}`);
@@ -577,7 +696,6 @@
           showAlert(editModalAlert, 'Quantity must be at least 1.');
           return;
         }
-
         const { error } = await supabase
           .from('livestock')
           .update({
@@ -586,7 +704,6 @@
             notes: editNotes.value.trim() || null,
           })
           .eq('id', id);
-
         if (error) {
           showAlert(editModalAlert, `Save failed: ${error.message}`);
           return;
@@ -601,7 +718,6 @@
         const item = livestock.find((x) => x.id === id);
         const name = displayName(item);
         if (!confirm(`Remove ${name} from this tank?\n\nThis cannot be undone.`)) return;
-
         const { error } = await supabase.from('livestock').delete().eq('id', id);
         if (error) {
           showAlert(editModalAlert, `Delete failed: ${error.message}`);
@@ -615,7 +731,7 @@
       document.getElementById('addLivestockBtn').addEventListener('click', openAddModal);
       document.getElementById('addModalCloseBtn').addEventListener('click', closeAddModal);
       document.getElementById('addModalCancelBtn').addEventListener('click', closeAddModal);
-      document.getElementById('addModalSaveBtn').addEventListener('click', saveAdd);
+      addSaveBtn.addEventListener('click', saveAdd);
       addModal.addEventListener('click', (e) => { if (e.target === addModal) closeAddModal(); });
 
       document.getElementById('editModalCloseBtn').addEventListener('click', closeEditModal);
@@ -636,6 +752,7 @@
         window.location.href = '/login.html';
       });
 
+      // Sidebar
       const sidebar = document.getElementById('appSidebar');
       const sidebarBackdrop = document.getElementById('appSidebarBackdrop');
       document.getElementById('navMobileToggle').addEventListener('click', () => {
