@@ -853,3 +853,246 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .species-detail-subhead:first-of-type {
   margin-top: 0;
 }
+/* ============================================================
+   AquaHub — Phase 3c (bioload) additions
+   APPEND to bottom of styles.css
+   ============================================================ */
+
+/* ---------- Status badge ---------- */
+.bioload-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.bioload-tone-success {
+  background: var(--success-bg);
+  color: var(--success);
+  border: 1px solid #bbf7d0;
+}
+.bioload-tone-warning {
+  background: #fffbeb;
+  color: #d97706;
+  border: 1px solid #fde68a;
+}
+.bioload-tone-danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid #fecaca;
+}
+.bioload-tone-neutral {
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+/* ---------- Meter ---------- */
+.bioload-meter {
+  margin-bottom: 16px;
+}
+
+.bioload-meter-track {
+  position: relative;
+  height: 14px;
+  background: var(--surface-raised);
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.bioload-meter-fill {
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  border-radius: 999px;
+  transition: width 0.3s ease, background 0.2s;
+}
+
+/* Fill colors mirror status tones */
+.bioload-meter-fill.bioload-tone-success {
+  background: linear-gradient(90deg, #22c55e, #14b8a6);
+}
+.bioload-meter-fill.bioload-tone-warning {
+  background: linear-gradient(90deg, #f59e0b, #ea580c);
+}
+.bioload-meter-fill.bioload-tone-danger {
+  background: linear-gradient(90deg, #ef4444, #b91c1c);
+}
+.bioload-meter-fill.bioload-tone-neutral {
+  background: linear-gradient(90deg, #94a3b8, #64748b);
+}
+
+.bioload-meter-marker {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: var(--text-subtle);
+  opacity: 0.4;
+}
+
+.bioload-meter-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 0.7rem;
+  color: var(--text-subtle);
+  font-weight: 600;
+}
+
+/* ---------- Summary stats row ---------- */
+.bioload-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  padding: 12px;
+  background: var(--surface-raised);
+  border-radius: 10px;
+  margin-bottom: 12px;
+}
+
+.bioload-stat-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-subtle);
+  margin-bottom: 4px;
+}
+
+.bioload-stat-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.bioload-stat-value.bioload-offset {
+  color: var(--success);
+}
+
+/* ---------- Warnings ---------- */
+.bioload-warnings:empty { display: none; }
+
+.bioload-warning {
+  padding: 8px 12px;
+  background: #fffbeb;
+  border-left: 3px solid #f59e0b;
+  color: #92400e;
+  font-size: 0.85rem;
+  border-radius: 6px;
+  margin-bottom: 6px;
+}
+
+/* ---------- Breakdown ---------- */
+.bioload-breakdown {
+  margin-top: 4px;
+}
+
+.bioload-breakdown summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 8px 0;
+  user-select: none;
+}
+
+.bioload-breakdown summary:hover {
+  color: var(--text);
+}
+
+.bioload-contributor-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.bioload-contributor {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.bioload-contributor:last-child {
+  border-bottom: none;
+}
+
+.bioload-contributor-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+}
+
+.bioload-contributor-qty {
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-left: 6px;
+}
+
+.bioload-contributor-units {
+  font-size: 0.85rem;
+  color: var(--text);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.bioload-contributor-units .text-muted {
+  font-size: 0.75rem;
+  margin-left: 4px;
+}
+
+.source-tag {
+  display: inline-block;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 999px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+.source-est { background: #fef3c7; color: #92400e; }
+.source-unk { background: #fee2e2; color: #991b1b; }
+
+.bioload-method-note {
+  font-size: 0.78rem;
+  color: var(--text-subtle);
+  margin-top: 12px;
+  line-height: 1.5;
+  font-style: italic;
+}
+
+/* ---------- Planner-specific (rows with remove button) ---------- */
+.planner-row {
+  align-items: center;
+}
+
+.planner-remove {
+  background: var(--danger-bg);
+  border: 1px solid #fecaca;
+  color: var(--danger);
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.planner-remove:hover {
+  background: #fecaca;
+}
