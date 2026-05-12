@@ -575,3 +575,281 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .modal-footer-right > * { width: 100%; justify-content: center; }
   .btn-danger { width: 100%; justify-content: center; }
 }
+/* ============================================================
+   AquaHub — Phase 3b (species library) additions
+   APPEND this block to the END of styles.css
+   ============================================================ */
+
+/* ---------- Search row ---------- */
+.species-search-row {
+  margin-bottom: 14px;
+}
+
+.species-search {
+  max-width: 500px;
+}
+
+/* ---------- Filters toggle badge ---------- */
+.filters-active-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 700;
+  margin-left: 4px;
+}
+
+/* ---------- Active filter chips (above grid) ---------- */
+.active-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.active-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.12), rgba(20, 184, 166, 0.12));
+  border: 1px solid var(--primary);
+  color: var(--primary-dark);
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.active-chip:hover {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.22), rgba(20, 184, 166, 0.22));
+}
+
+.active-chip-x {
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 0.6;
+}
+
+/* ---------- Species card grid ---------- */
+.species-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.species-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: transform 0.1s, box-shadow 0.15s;
+}
+
+.species-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(14, 165, 233, 0.18);
+}
+
+.species-card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.species-card-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.species-card-name h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0;
+  color: var(--text);
+}
+
+.species-card-sci {
+  font-size: 0.78rem;
+  color: var(--text-subtle);
+  font-style: italic;
+  margin-top: 2px;
+}
+
+.species-card-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.species-card-temp {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
+/* ---------- Filter slide-out panel ---------- */
+.filter-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 95;
+}
+
+.filter-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: 400px;
+  background: var(--surface);
+  z-index: 96;
+  transform: translateX(100%);
+  transition: transform 0.25s ease;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.18);
+}
+
+.filter-panel.open {
+  transform: translateX(0);
+}
+
+.filter-panel-head {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.filter-panel-head h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.filter-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 20px;
+}
+
+.filter-panel-foot {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-raised);
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.filter-group {
+  border: none;
+  margin-bottom: 22px;
+}
+
+.filter-group legend {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-subtle);
+  margin-bottom: 8px;
+}
+
+.filter-hint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: -4px;
+  margin-bottom: 8px;
+}
+
+.chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 12px;
+  background: var(--surface-raised);
+  border: 1.5px solid var(--border);
+  color: var(--text);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.filter-chip:hover {
+  border-color: var(--primary);
+}
+
+.filter-chip.active {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.15), rgba(20, 184, 166, 0.15));
+  border-color: var(--primary);
+  color: var(--primary-dark);
+}
+
+/* ---------- Species detail modal ---------- */
+.modal-large {
+  max-width: 640px;
+}
+
+.species-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 18px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.species-detail-name {
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.species-detail-sci {
+  font-size: 0.88rem;
+  color: var(--text-subtle);
+  font-style: italic;
+  margin-top: 3px;
+}
+
+.species-detail-subhead {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-subtle);
+  margin: 18px 0 8px;
+}
+
+.species-detail-subhead:first-of-type {
+  margin-top: 0;
+}
