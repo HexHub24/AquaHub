@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0c4a6e" />
+    <title>Species Library — AquaHub</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="manifest" href="/manifest.json" />
+  </head>
+  <body class="app-body">
+    <div class="app-layout">
+      <button class="nav-mobile-toggle" id="navMobileToggle" aria-label="Open menu" type="button">☰</button>
+
+      <aside class="app-sidebar" id="appSidebar">
+        <div class="app-sidebar-head">
+          <a href="/" class="app-sidebar-brand">
+            <span class="app-sidebar-brand-icon">🐠</span>
+            <span class="app-sidebar-brand-text">AquaHub</span>
+          </a>
+          <button class="nav-sidebar-close" id="navSidebarClose" aria-label="Close menu" type="button">×</button>
+        </div>
+
+        <nav class="app-sidebar-nav">
+          <a href="/app.html"><span class="nav-icon">🏠</span><span class="nav-label">Dashboard</span></a>
+          <a href="/tanks.html"><span class="nav-icon">🐠</span><span class="nav-label">My Tanks</span></a>
+          <a href="/species.html" class="active"><span class="nav-icon">🌿</span><span class="nav-label">Species</span></a>
+          <span class="app-sidebar-disabled"><span class="nav-icon">📊</span><span class="nav-label">Bioload</span><span class="nav-soon">Soon</span></span>
+          <span class="app-sidebar-disabled"><span class="nav-icon">📈</span><span class="nav-label">Trends</span><span class="nav-soon">Soon</span></span>
+        </nav>
+
+        <div class="app-sidebar-foot">
+          <div class="app-user" id="appUser">…</div>
+          <button class="btn-secondary btn-sidebar" id="logoutBtn" type="button">Sign Out</button>
+        </div>
+      </aside>
+
+      <div class="app-sidebar-backdrop" id="appSidebarBackdrop"></div>
+
+      <main class="app-content">
+        <header class="app-content-head">
+          <div>
+            <h1 class="page-title">Species Library</h1>
+            <p class="text-muted" id="speciesSubtitle">Loading…</p>
+          </div>
+          <button id="filtersToggleBtn" class="btn-secondary btn-inline" type="button">
+            <span>⚙️</span> Filters
+            <span id="filtersActiveBadge" class="filters-active-badge" style="display: none">0</span>
+          </button>
+        </header>
+
+        <div class="species-search-row">
+          <input
+            id="searchInput"
+            type="search"
+            class="form-input species-search"
+            placeholder="Search by common or scientific name…"
+            autocomplete="off"
+          />
+        </div>
+
+        <div id="activeChips" class="active-chips" style="display: none"></div>
+
+        <div id="speciesAlert" class="alert" role="alert"></div>
+        <div id="loadingState" class="empty-state">Loading species…</div>
+
+        <div id="emptyState" class="empty-state" style="display: none">
+          <div class="empty-icon">🔍</div>
+          <h3>No matches</h3>
+          <p class="text-muted">Try clearing some filters or changing your search.</p>
+          <button id="clearAllBtn" class="btn-secondary btn-inline" type="button">Clear all filters</button>
+        </div>
+
+        <div id="speciesGrid" class="species-grid" style="display: none"></div>
+      </main>
+    </div>
+
+    <!-- Filter Panel -->
+    <div id="filterBackdrop" class="filter-backdrop" style="display: none"></div>
+    <aside id="filterPanel" class="filter-panel" aria-label="Filters">
+      <div class="filter-panel-head">
+        <h3>Filters</h3>
+        <button class="modal-close" id="filterCloseBtn" type="button" aria-label="Close">×</button>
+      </div>
+      <div class="filter-panel-body">
+        <fieldset class="filter-group">
+          <legend>Type</legend>
+          <div class="chip-group" id="filterType">
+            <button type="button" class="filter-chip" data-value="fish">🐟 Fish</button>
+            <button type="button" class="filter-chip" data-value="invertebrate">🦐 Inverts</button>
+            <button type="button" class="filter-chip" data-value="plant">🌿 Plants</button>
+            <button type="button" class="filter-chip" data-value="coral">🪸 Corals</button>
+          </div>
+        </fieldset>
+
+        <fieldset class="filter-group">
+          <legend>Water</legend>
+          <div class="chip-group" id="filterWater">
+            <button type="button" class="filter-chip" data-value="freshwater">Freshwater</button>
+            <button type="button" class="filter-chip" data-value="saltwater">Saltwater</button>
+            <button type="button" class="filter-chip" data-value="brackish">Brackish</button>
+          </div>
+        </fieldset>
+
+        <fieldset class="filter-group">
+          <legend>Care level</legend>
+          <div class="chip-group" id="filterCare">
+            <button type="button" class="filter-chip" data-value="easy">Easy</button>
+            <button type="button" class="filter-chip" data-value="moderate">Moderate</button>
+            <button type="button" class="filter-chip" data-value="difficult">Difficult</button>
+            <button type="button" class="filter-chip" data-value="expert">Expert</button>
+          </div>
+        </fieldset>
+
+        <fieldset class="filter-group">
+          <legend>Temperament</legend>
+          <div class="chip-group" id="filterTemperament">
+            <button type="button" class="filter-chip" data-value="peaceful">Peaceful</button>
+            <button type="button" class="filter-chip" data-value="semi-aggressive">Semi-aggressive</button>
+            <button type="button" class="filter-chip" data-value="aggressive">Aggressive</button>
+          </div>
+        </fieldset>
+
+        <fieldset class="filter-group">
+          <legend>Max tank size you have</legend>
+          <p class="filter-hint">Only show species that fit in a tank this size or smaller.</p>
+          <div class="form-group" style="margin-top: 6px">
+            <input id="filterMaxTank" type="number" class="form-input" min="0" step="1" placeholder="e.g. 20 gallons" />
+          </div>
+        </fieldset>
+
+        <fieldset class="filter-group">
+          <legend>Max adult size</legend>
+          <p class="filter-hint">Only show species smaller than this.</p>
+          <div class="form-group" style="margin-top: 6px">
+            <input id="filterMaxAdultSize" type="number" class="form-input" min="0" step="0.5" placeholder="e.g. 3 inches" />
+          </div>
+        </fieldset>
+      </div>
+      <div class="filter-panel-foot">
+        <button id="filterClearBtn" class="btn-secondary" type="button">Clear all</button>
+        <button id="filterApplyBtn" class="btn-primary btn-inline" type="button">Apply</button>
+      </div>
+    </aside>
+
+    <!-- Species Detail Modal -->
+    <div id="speciesDetailModal" class="modal-backdrop" style="display: none">
+      <div class="modal modal-large" role="dialog" aria-modal="true" aria-labelledby="speciesDetailTitle">
+        <div class="modal-header">
+          <h3 id="speciesDetailTitle">Species</h3>
+          <button class="modal-close" id="speciesDetailCloseBtn" type="button" aria-label="Close">×</button>
+        </div>
+        <div class="modal-body" id="speciesDetailBody">
+          Loading…
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      import { supabase, requireAuth } from '/lib/supabase.js';
+
+      const user = await requireAuth();
+      if (!user) throw new Error('not authenticated');
+      document.getElementById('appUser').textContent = user.email;
+
+      // ---- State ----
+      let allSpecies = [];
+      let filtered = [];
+      const filters = {
+        search: '',
+        types: new Set(),
+        waters: new Set(),
+        cares: new Set(),
+        temperaments: new Set(),
+        maxTank: null,
+        maxAdultSize: null,
+      };
+
+      // ---- DOM refs ----
+      const grid = document.getElementById('speciesGrid');
+      const loadingState = document.getElementById('loadingState');
+      const emptyState = document.getElementById('emptyState');
+      const alertEl = document.getElementById('speciesAlert');
+      const speciesSubtitle = document.getElementById('speciesSubtitle');
+      const searchInput = document.getElementById('searchInput');
+      const activeChips = document.getElementById('activeChips');
+      const filtersActiveBadge = document.getElementById('filtersActiveBadge');
+
+      const filterPanel = document.getElementById('filterPanel');
+      const filterBackdrop = document.getElementById('filterBackdrop');
+      const filterMaxTank = document.getElementById('filterMaxTank');
+      const filterMaxAdultSize = document.getElementById('filterMaxAdultSize');
+
+      const detailModal = document.getElementById('speciesDetailModal');
+      const detailBody = document.getElementById('speciesDetailBody');
+      const detailTitle = document.getElementById('speciesDetailTitle');
+
+      const CATEGORY_LABELS = {
+        fish:         { label: 'Fish',   icon: '🐟', avatar: 'cat-fish' },
+        invertebrate: { label: 'Invert', icon: '🦐', avatar: 'cat-invert' },
+        plant:        { label: 'Plant',  icon: '🌿', avatar: 'cat-plant' },
+        coral:        { label: 'Coral',  icon: '🪸', avatar: 'cat-coral' },
+      };
+
+      // ---- Helpers ----
+      function escapeHtml(s) {
+        if (s === null || s === undefined) return '';
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+      }
+      function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+      function showAlert(message, type = 'error') {
+        alertEl.textContent = message;
+        alertEl.className = `alert show alert-${type}`;
+      }
+      function clearAlert() { alertEl.className = 'alert'; alertEl.textContent = ''; }
+
+      // ---- Load ----
+      async function loadSpecies() {
+        loadingState.style.display = 'block';
+        grid.style.display = 'none';
+        emptyState.style.display = 'none';
+        clearAlert();
+
+        const { data, error } = await supabase
+          .from('species').select('*').order('common_name');
+
+        loadingState.style.display = 'none';
+        if (error) { showAlert(`Could not load species: ${error.message}`); return; }
+        allSpecies = data || [];
+        applyFilters();
+      }
+
+      // ---- Filter logic ----
+      function applyFilters() {
+        const q = filters.search.trim().toLowerCase();
+        filtered = allSpecies.filter((s) => {
+          if (q) {
+            const inName = (s.common_name || '').toLowerCase().includes(q);
+            const inSci = (s.scientific_name || '').toLowerCase().includes(q);
+            if (!inName && !inSci) return false;
+          }
+          if (filters.types.size > 0 && !filters.types.has(s.species_type)) return false;
+          if (filters.waters.size > 0 && !filters.waters.has(s.water_type)) return false;
+          if (filters.cares.size > 0 && !filters.cares.has(s.care_level)) return false;
+          if (filters.temperaments.size > 0 && !filters.temperaments.has(s.temperament)) return false;
+          if (filters.maxTank !== null && s.min_tank_gallons !== null && s.min_tank_gallons > filters.maxTank) return false;
+          if (filters.maxAdultSize !== null && s.max_size_inches !== null && s.max_size_inches > filters.maxAdultSize) return false;
+          return true;
+        });
+
+        speciesSubtitle.textContent = `${filtered.length} of ${allSpecies.length} species`;
+
+        const activeCount =
+          filters.types.size + filters.waters.size + filters.cares.size + filters.temperaments.size +
+          (filters.maxTank !== null ? 1 : 0) + (filters.maxAdultSize !== null ? 1 : 0);
+        filtersActiveBadge.textContent = String(activeCount);
+        filtersActiveBadge.style.display = activeCount > 0 ? '' : 'none';
+
+        renderChips();
+        renderGrid();
+      }
+
+      function renderChips() {
+        const chips = [];
+        for (const v of filters.types)        chips.push(['types', v, CATEGORY_LABELS[v]?.label || v]);
+        for (const v of filters.waters)       chips.push(['waters', v, capitalize(v)]);
+        for (const v of filters.cares)        chips.push(['cares', v, `Care: ${capitalize(v)}`]);
+        for (const v of filters.temperaments) chips.push(['temperaments', v, capitalize(v)]);
+        if (filters.maxTank !== null)         chips.push(['maxTank', filters.maxTank, `Fits in ${filters.maxTank}g`]);
+        if (filters.maxAdultSize !== null)    chips.push(['maxAdultSize', filters.maxAdultSize, `Smaller than ${filters.maxAdultSize}"`]);
+
+        if (chips.length === 0) { activeChips.style.display = 'none'; activeChips.innerHTML = ''; return; }
+        activeChips.style.display = 'flex';
+        activeChips.innerHTML = chips.map(([key, val, label]) =>
+          `<button type="button" class="active-chip" data-key="${key}" data-val="${escapeHtml(String(val))}">
+             ${escapeHtml(label)} <span class="active-chip-x">×</span>
+           </button>`).join('');
+
+        activeChips.querySelectorAll('.active-chip').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const key = btn.dataset.key;
+            const val = btn.dataset.val;
+            if (filters[key] instanceof Set) {
+              filters[key].delete(val);
+            } else {
+              filters[key] = null;
+              if (key === 'maxTank') filterMaxTank.value = '';
+              if (key === 'maxAdultSize') filterMaxAdultSize.value = '';
+            }
+            syncPanelFromState();
+            applyFilters();
+          });
+        });
+      }
+
+      function renderGrid() {
+        if (filtered.length === 0) {
+          grid.style.display = 'none';
+          emptyState.style.display = 'block';
+          return;
+        }
+        emptyState.style.display = 'none';
+        grid.style.display = 'grid';
+        grid.innerHTML = filtered.map((s) => renderCard(s)).join('');
+        grid.querySelectorAll('.species-card').forEach((card) => {
+          card.addEventListener('click', () => openDetail(parseInt(card.dataset.id, 10)));
+        });
+      }
+
+      function renderCard(s) {
+        const cat = CATEGORY_LABELS[s.species_type] || { label: capitalize(s.species_type), icon: '✨', avatar: 'cat-other' };
+        const pills = [];
+        if (s.water_type) pills.push(`<span class="meta-pill">${capitalize(s.water_type)}</span>`);
+        if (s.care_level) pills.push(`<span class="meta-pill">${capitalize(s.care_level)}</span>`);
+        if (s.min_tank_gallons) pills.push(`<span class="meta-pill">${s.min_tank_gallons}g+</span>`);
+        if (s.max_size_inches) pills.push(`<span class="meta-pill">Up to ${s.max_size_inches}"</span>`);
+
+        return `
+          <article class="species-card" data-id="${s.id}">
+            <div class="species-card-head">
+              <div class="livestock-avatar livestock-avatar-icon ${cat.avatar}">${cat.icon}</div>
+              <div class="species-card-name">
+                <h3>${escapeHtml(s.common_name)}</h3>
+                ${s.scientific_name ? `<div class="species-card-sci">${escapeHtml(s.scientific_name)}</div>` : ''}
+              </div>
+            </div>
+            <div class="species-card-pills">${pills.join('')}</div>
+            ${s.temperament ? `<div class="species-card-temp">${capitalize(s.temperament)}</div>` : ''}
+          </article>
+        `;
+      }
+
+      // ---- Detail modal ----
+      function openDetail(id) {
+        const s = allSpecies.find((x) => x.id === id);
+        if (!s) return;
+        const cat = CATEGORY_LABELS[s.species_type] || { label: capitalize(s.species_type), icon: '✨', avatar: 'cat-other' };
+        detailTitle.textContent = s.common_name;
+
+        const tempRange = (s.min_temp || s.max_temp) ? `${s.min_temp ?? '?'}°F – ${s.max_temp ?? '?'}°F` : null;
+        const phRange = (s.min_ph || s.max_ph) ? `${s.min_ph ?? '?'} – ${s.max_ph ?? '?'}` : null;
+
+        const facts = [
+          ['Type',        capitalize(s.species_type)],
+          ['Water',       capitalize(s.water_type)],
+          ['Min tank',    s.min_tank_gallons ? `${s.min_tank_gallons} gallons` : null],
+          ['Adult size',  s.max_size_inches ? `${s.max_size_inches}"` : null],
+          ['Temperature', tempRange],
+          ['pH',          phRange],
+          ['Temperament', capitalize(s.temperament)],
+          ['Diet',        capitalize(s.diet)],
+          ['Care level',  capitalize(s.care_level)],
+        ].filter(([, v]) => v);
+
+        detailBody.innerHTML = `
+          <div class="species-detail-head">
+            <div class="livestock-avatar livestock-avatar-icon ${cat.avatar}" style="width: 60px; height: 60px; font-size: 1.7rem;">${cat.icon}</div>
+            <div>
+              <div class="species-detail-name">${escapeHtml(s.common_name)}</div>
+              ${s.scientific_name ? `<div class="species-detail-sci">${escapeHtml(s.scientific_name)}</div>` : ''}
+            </div>
+          </div>
+
+          <h4 class="species-detail-subhead">Quick facts</h4>
+          <dl class="detail-list">
+            ${facts.map(([k, v]) => `<div><dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd></div>`).join('')}
+          </dl>
+
+          ${s.care_notes ? `
+            <h4 class="species-detail-subhead">Care notes</h4>
+            <p class="text-body">${escapeHtml(s.care_notes)}</p>
+          ` : ''}
+
+          ${s.compatible_with ? `
+            <h4 class="species-detail-subhead">Compatible with</h4>
+            <p class="text-body">${escapeHtml(s.compatible_with)}</p>
+          ` : ''}
+
+          ${s.avoid_with ? `
+            <h4 class="species-detail-subhead">Avoid with</h4>
+            <p class="text-body">${escapeHtml(s.avoid_with)}</p>
+          ` : ''}
+        `;
+
+        detailModal.style.display = 'flex';
+      }
+
+      function closeDetail() { detailModal.style.display = 'none'; }
+
+      // ---- Filter panel ----
+      function openFilterPanel() {
+        filterPanel.classList.add('open');
+        filterBackdrop.style.display = 'block';
+      }
+      function closeFilterPanel() {
+        filterPanel.classList.remove('open');
+        filterBackdrop.style.display = 'none';
+      }
+
+      function syncPanelFromState() {
+        // Reflect filter state into the chip buttons & inputs in the panel
+        const map = {
+          filterType: filters.types,
+          filterWater: filters.waters,
+          filterCare: filters.cares,
+          filterTemperament: filters.temperaments,
+        };
+        for (const [id, set] of Object.entries(map)) {
+          document.querySelectorAll(`#${id} .filter-chip`).forEach((btn) => {
+            btn.classList.toggle('active', set.has(btn.dataset.value));
+          });
+        }
+        filterMaxTank.value = filters.maxTank ?? '';
+        filterMaxAdultSize.value = filters.maxAdultSize ?? '';
+      }
+
+      function wireChipGroup(containerId, setRef) {
+        document.querySelectorAll(`#${containerId} .filter-chip`).forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const v = btn.dataset.value;
+            if (setRef.has(v)) setRef.delete(v); else setRef.add(v);
+            btn.classList.toggle('active');
+          });
+        });
+      }
+
+      wireChipGroup('filterType', filters.types);
+      wireChipGroup('filterWater', filters.waters);
+      wireChipGroup('filterCare', filters.cares);
+      wireChipGroup('filterTemperament', filters.temperaments);
+
+      document.getElementById('filterApplyBtn').addEventListener('click', () => {
+        const t = filterMaxTank.value.trim();
+        filters.maxTank = t === '' ? null : Number(t);
+        const a = filterMaxAdultSize.value.trim();
+        filters.maxAdultSize = a === '' ? null : Number(a);
+        closeFilterPanel();
+        applyFilters();
+      });
+
+      document.getElementById('filterClearBtn').addEventListener('click', () => {
+        filters.types.clear();
+        filters.waters.clear();
+        filters.cares.clear();
+        filters.temperaments.clear();
+        filters.maxTank = null;
+        filters.maxAdultSize = null;
+        syncPanelFromState();
+        applyFilters();
+      });
+
+      document.getElementById('filtersToggleBtn').addEventListener('click', openFilterPanel);
+      document.getElementById('filterCloseBtn').addEventListener('click', closeFilterPanel);
+      filterBackdrop.addEventListener('click', closeFilterPanel);
+
+      // ---- Search input ----
+      let searchTimeout;
+      searchInput.addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+          filters.search = e.target.value;
+          applyFilters();
+        }, 150);
+      });
+
+      // ---- Empty-state clear ----
+      document.getElementById('clearAllBtn').addEventListener('click', () => {
+        filters.search = '';
+        searchInput.value = '';
+        filters.types.clear();
+        filters.waters.clear();
+        filters.cares.clear();
+        filters.temperaments.clear();
+        filters.maxTank = null;
+        filters.maxAdultSize = null;
+        syncPanelFromState();
+        applyFilters();
+      });
+
+      // ---- Modal close ----
+      document.getElementById('speciesDetailCloseBtn').addEventListener('click', closeDetail);
+      detailModal.addEventListener('click', (e) => { if (e.target === detailModal) closeDetail(); });
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          if (detailModal.style.display !== 'none') closeDetail();
+          else if (filterPanel.classList.contains('open')) closeFilterPanel();
+        }
+      });
+
+      // ---- Sidebar (mobile) ----
+      document.getElementById('logoutBtn').addEventListener('click', async () => {
+        await supabase.auth.signOut();
+        window.location.href = '/login.html';
+      });
+      const sidebar = document.getElementById('appSidebar');
+      const sidebarBackdrop = document.getElementById('appSidebarBackdrop');
+      document.getElementById('navMobileToggle').addEventListener('click', () => {
+        sidebar.classList.add('open');
+        sidebarBackdrop.classList.add('open');
+      });
+      const closeNav = () => {
+        sidebar.classList.remove('open');
+        sidebarBackdrop.classList.remove('open');
+      };
+      document.getElementById('navSidebarClose').addEventListener('click', closeNav);
+      sidebarBackdrop.addEventListener('click', closeNav);
+
+      // ---- Boot ----
+      loadSpecies();
+    </script>
+  </body>
+</html>
