@@ -81,6 +81,7 @@
               </div>
 
               <div id="livestockStats" class="livestock-stats"></div>
+              <div id="livestockTotal" class="livestock-total" style="display: none"></div>
               <div id="livestockAlert" class="alert" role="alert"></div>
               <div id="livestockEmpty" class="empty-state" style="display: none; padding: 30px 10px;">
                 <div class="empty-icon">🐟</div>
@@ -113,7 +114,6 @@
         <div class="modal-body">
           <div id="addModalAlert" class="alert" role="alert"></div>
 
-          <!-- Step indicator: are we picking species, or filling details? -->
           <div id="selectedSpeciesPanel" class="selected-species-panel" style="display: none">
             <div class="selected-species-info">
               <div class="selected-species-label">Selected species</div>
@@ -152,9 +152,30 @@
               <input id="livestockQuantity" type="number" class="form-input" min="1" max="9999" value="1" required />
             </div>
             <div class="form-group">
-              <label class="form-label" for="livestockAddedDate">Acquired</label>
-              <input id="livestockAddedDate" type="date" class="form-input" />
+              <label class="form-label" for="livestockPrice">Price each ($)</label>
+              <input id="livestockPrice" type="number" class="form-input" min="0" step="0.01" placeholder="Optional" />
             </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="livestockAddedDate">Acquired</label>
+            <input id="livestockAddedDate" type="date" class="form-input" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Photo</label>
+            <div class="photo-upload" id="addPhotoUpload">
+              <input type="file" id="addPhotoInput" accept="image/jpeg,image/png,image/webp" hidden />
+              <button type="button" class="photo-upload-btn" id="addPhotoBtn">
+                <span>📷</span>
+                <span>Add a photo</span>
+              </button>
+              <div class="photo-preview" id="addPhotoPreview" style="display: none">
+                <img id="addPhotoPreviewImg" alt="Preview" />
+                <button type="button" class="photo-preview-remove" id="addPhotoRemove" aria-label="Remove photo">×</button>
+              </div>
+            </div>
+            <p class="form-hint" id="addPhotoHint">Optional. Photos are resized to ~800px to save space.</p>
           </div>
 
           <div class="form-group">
@@ -193,9 +214,30 @@
               <input id="editQuantity" type="number" class="form-input" min="1" max="9999" required />
             </div>
             <div class="form-group">
-              <label class="form-label" for="editAddedDate">Acquired</label>
-              <input id="editAddedDate" type="date" class="form-input" />
+              <label class="form-label" for="editPrice">Price each ($)</label>
+              <input id="editPrice" type="number" class="form-input" min="0" step="0.01" placeholder="Optional" />
             </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="editAddedDate">Acquired</label>
+            <input id="editAddedDate" type="date" class="form-input" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Photo</label>
+            <div class="photo-upload" id="editPhotoUpload">
+              <input type="file" id="editPhotoInput" accept="image/jpeg,image/png,image/webp" hidden />
+              <button type="button" class="photo-upload-btn" id="editPhotoBtn">
+                <span>📷</span>
+                <span>Add a photo</span>
+              </button>
+              <div class="photo-preview" id="editPhotoPreview" style="display: none">
+                <img id="editPhotoPreviewImg" alt="Preview" />
+                <button type="button" class="photo-preview-remove" id="editPhotoRemove" aria-label="Remove photo">×</button>
+              </div>
+            </div>
+            <p class="form-hint" id="editPhotoHint">Photos are resized to ~800px to save space.</p>
           </div>
 
           <div class="form-group">
@@ -229,6 +271,7 @@
       const content = document.getElementById('content');
 
       const livestockStats = document.getElementById('livestockStats');
+      const livestockTotal = document.getElementById('livestockTotal');
       const livestockEmpty = document.getElementById('livestockEmpty');
       const livestockGroups = document.getElementById('livestockGroups');
       const livestockAlert = document.getElementById('livestockAlert');
@@ -249,51 +292,73 @@
       const customNamePreview = document.getElementById('customNamePreview');
 
       const livestockQuantity = document.getElementById('livestockQuantity');
+      const livestockPrice = document.getElementById('livestockPrice');
       const livestockAddedDate = document.getElementById('livestockAddedDate');
       const livestockNotes = document.getElementById('livestockNotes');
+
+      const addPhotoInput = document.getElementById('addPhotoInput');
+      const addPhotoBtn = document.getElementById('addPhotoBtn');
+      const addPhotoPreview = document.getElementById('addPhotoPreview');
+      const addPhotoPreviewImg = document.getElementById('addPhotoPreviewImg');
+      const addPhotoRemove = document.getElementById('addPhotoRemove');
+      const addPhotoHint = document.getElementById('addPhotoHint');
 
       const editModal = document.getElementById('editModal');
       const editModalAlert = document.getElementById('editModalAlert');
       const editLivestockIdEl = document.getElementById('editLivestockId');
       const editSpeciesDisplay = document.getElementById('editSpeciesDisplay');
       const editQuantity = document.getElementById('editQuantity');
+      const editPrice = document.getElementById('editPrice');
       const editAddedDate = document.getElementById('editAddedDate');
       const editNotes = document.getElementById('editNotes');
 
+      const editPhotoInput = document.getElementById('editPhotoInput');
+      const editPhotoBtn = document.getElementById('editPhotoBtn');
+      const editPhotoPreview = document.getElementById('editPhotoPreview');
+      const editPhotoPreviewImg = document.getElementById('editPhotoPreviewImg');
+      const editPhotoRemove = document.getElementById('editPhotoRemove');
+      const editPhotoHint = document.getElementById('editPhotoHint');
+
       // ---- State ----
       let livestock = [];
-      let selectedSpecies = null; // {id, common_name, species_type, water_type} or {custom: true, name: '...'}
-      let currentResults = []; // species objects currently shown in typeahead
+      let signedUrls = {}; // photo_url -> resolved URL
+      let selectedSpecies = null;
+      let currentResults = [];
       let highlightIndex = -1;
       let searchTimeout;
 
+      // Photo state
+      let addPhotoBlob = null;        // resized blob to upload on save
+      let editPhotoBlob = null;       // resized blob to upload on save (replacement)
+      let editPhotoExistingPath = null; // existing photo_url, if any
+      let editPhotoCleared = false;   // user clicked X to remove existing photo
+
       const CATEGORY_ORDER = ['fish', 'invertebrate', 'plant', 'coral', 'other'];
       const CATEGORY_LABELS = {
-        fish: { label: 'Fish', icon: '🐟', plural: 'fish' },
-        invertebrate: { label: 'Inverts', icon: '🦐', plural: 'inverts' },
-        plant: { label: 'Plants', icon: '🌿', plural: 'plants' },
-        coral: { label: 'Corals', icon: '🪸', plural: 'corals' },
-        other: { label: 'Other', icon: '✨', plural: 'other' },
+        fish:         { label: 'Fish',    icon: '🐟', plural: 'fish',    color: 'cat-fish' },
+        invertebrate: { label: 'Inverts', icon: '🦐', plural: 'inverts', color: 'cat-invert' },
+        plant:        { label: 'Plants',  icon: '🌿', plural: 'plants',  color: 'cat-plant' },
+        coral:        { label: 'Corals',  icon: '🪸', plural: 'corals',  color: 'cat-coral' },
+        other:        { label: 'Other',   icon: '✨', plural: 'other',   color: 'cat-other' },
       };
 
       // ---- Helpers ----
       function escapeHtml(s) {
         if (s === null || s === undefined) return '';
         return String(s)
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&#039;');
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
       }
-      function capitalize(s) {
-        return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
-      }
+      function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
       function formatDate(iso) {
         if (!iso) return null;
         const d = new Date(iso);
         if (Number.isNaN(d.getTime())) return iso;
         return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+      }
+      function formatMoney(n) {
+        if (n === null || n === undefined) return null;
+        return `$${Number(n).toFixed(2)}`;
       }
       function showAlert(el, message, type = 'error') {
         el.textContent = message;
@@ -314,6 +379,54 @@
         return item.species?.scientific_name || null;
       }
 
+      // ---- Image resize (in-browser) ----
+      // Returns a Blob (JPEG) at most maxDim wide/tall, quality 0.85.
+      async function resizeImage(file, maxDim = 800) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onerror = () => reject(new Error('Failed to read file'));
+          reader.onload = () => {
+            const img = new Image();
+            img.onerror = () => reject(new Error('Failed to load image'));
+            img.onload = () => {
+              const ratio = Math.min(maxDim / img.width, maxDim / img.height, 1);
+              const w = Math.round(img.width * ratio);
+              const h = Math.round(img.height * ratio);
+              const canvas = document.createElement('canvas');
+              canvas.width = w;
+              canvas.height = h;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0, w, h);
+              canvas.toBlob(
+                (blob) => {
+                  if (!blob) reject(new Error('Resize failed'));
+                  else resolve(blob);
+                },
+                'image/jpeg',
+                0.85,
+              );
+            };
+            img.src = reader.result;
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+
+      // ---- Signed URLs for photos ----
+      // We store photos in a private bucket. Generate short-lived signed URLs
+      // to display them. Cache per render so we don't re-sign each photo.
+      async function getSignedPhotoUrl(path) {
+        if (!path) return null;
+        if (signedUrls[path]) return signedUrls[path];
+        const { data, error } = await supabase
+          .storage
+          .from('livestock-photos')
+          .createSignedUrl(path, 3600); // 1 hour
+        if (error) return null;
+        signedUrls[path] = data?.signedUrl || null;
+        return signedUrls[path];
+      }
+
       // ---- Tank load ----
       function showError() {
         loadingState.style.display = 'none';
@@ -325,11 +438,7 @@
         showError();
       } else {
         const { data: tank, error } = await supabase
-          .from('tanks')
-          .select('*')
-          .eq('id', tankId)
-          .maybeSingle();
-
+          .from('tanks').select('*').eq('id', tankId).maybeSingle();
         if (error || !tank) {
           showError();
         } else {
@@ -353,9 +462,10 @@
       // ---- Livestock load + render ----
       async function loadLivestock() {
         clearAlert(livestockAlert);
+        signedUrls = {}; // clear cache on reload
         const { data, error } = await supabase
           .from('livestock')
-          .select('id, quantity, added_date, notes, custom_name, species_id, species ( id, common_name, scientific_name, species_type )')
+          .select('id, quantity, added_date, notes, custom_name, species_id, price_per_unit, photo_url, species ( id, common_name, scientific_name, species_type )')
           .eq('tank_id', tankId)
           .order('created_at', { ascending: true });
 
@@ -366,17 +476,32 @@
           return;
         }
         livestock = data || [];
+
+        // Pre-resolve signed URLs in parallel for photos we have
+        await Promise.all(
+          livestock
+            .filter((x) => x.photo_url)
+            .map((x) => getSignedPhotoUrl(x.photo_url)),
+        );
+
         renderLivestock();
       }
 
       function renderLivestock() {
         const groups = {};
+        let grandTotal = 0;
+        let anyPriced = false;
         for (const item of livestock) {
           const cat = categoryOf(item);
           if (!groups[cat]) groups[cat] = [];
           groups[cat].push(item);
+          if (item.price_per_unit !== null && item.price_per_unit !== undefined) {
+            grandTotal += Number(item.price_per_unit) * (item.quantity || 0);
+            anyPriced = true;
+          }
         }
 
+        // Stats pills
         livestockStats.innerHTML = CATEGORY_ORDER.filter((c) => groups[c]?.length)
           .map((cat) => {
             const meta = CATEGORY_LABELS[cat];
@@ -384,6 +509,17 @@
             return `<div class="stat-pill"><span>${meta.icon}</span><strong>${count}</strong> ${meta.plural}</div>`;
           })
           .join('');
+
+        // Total cost pill (separate row, only if any priced)
+        if (anyPriced) {
+          livestockTotal.style.display = 'flex';
+          livestockTotal.innerHTML = `
+            <span class="livestock-total-label">Total invested</span>
+            <span class="livestock-total-value">${formatMoney(grandTotal)}</span>
+          `;
+        } else {
+          livestockTotal.style.display = 'none';
+        }
 
         if (livestock.length === 0) {
           livestockEmpty.style.display = 'block';
@@ -403,22 +539,7 @@
                   <span class="livestock-group-count">${items.length}</span>
                 </h3>
                 <ul class="livestock-list">
-                  ${items.map((it) => {
-                    const sci = scientificName(it);
-                    return `
-                      <li class="livestock-item" data-id="${it.id}">
-                        <div class="livestock-item-main">
-                          <div class="livestock-item-name">
-                            ${escapeHtml(displayName(it))}
-                            ${!it.species_id ? '<span class="custom-badge">custom</span>' : ''}
-                          </div>
-                          ${sci ? `<div class="livestock-item-sci">${escapeHtml(sci)}</div>` : ''}
-                          ${it.notes ? `<div class="livestock-item-notes">${escapeHtml(it.notes)}</div>` : ''}
-                        </div>
-                        <div class="livestock-item-qty">×${it.quantity}</div>
-                      </li>
-                    `;
-                  }).join('')}
+                  ${items.map((it) => renderLivestockItem(it, meta)).join('')}
                 </ul>
               </section>
             `;
@@ -430,16 +551,58 @@
         });
       }
 
-      // ---- Add modal: open/close + selection state ----
+      function renderLivestockItem(it, catMeta) {
+        const sci = scientificName(it);
+        const photoUrl = it.photo_url ? signedUrls[it.photo_url] : null;
+
+        const avatar = photoUrl
+          ? `<img class="livestock-avatar livestock-avatar-photo" src="${escapeHtml(photoUrl)}" alt="" />`
+          : `<div class="livestock-avatar livestock-avatar-icon ${catMeta.color}">${catMeta.icon}</div>`;
+
+        const pills = [];
+        if (it.added_date) {
+          pills.push(`<span class="meta-pill">📅 ${escapeHtml(formatDate(it.added_date))}</span>`);
+        }
+        if (it.price_per_unit !== null && it.price_per_unit !== undefined) {
+          const total = Number(it.price_per_unit) * (it.quantity || 0);
+          pills.push(
+            `<span class="meta-pill meta-pill-price">💰 ${formatMoney(it.price_per_unit)} ea · ${formatMoney(total)} total</span>`,
+          );
+        }
+
+        return `
+          <li class="livestock-item livestock-item-rich" data-id="${it.id}">
+            ${avatar}
+            <div class="livestock-item-main">
+              <div class="livestock-item-name">
+                ${escapeHtml(displayName(it))}
+                ${!it.species_id ? '<span class="custom-badge">custom</span>' : ''}
+              </div>
+              ${sci ? `<div class="livestock-item-sci">${escapeHtml(sci)}</div>` : ''}
+              ${pills.length ? `<div class="meta-pills">${pills.join('')}</div>` : ''}
+              ${it.notes ? `<div class="livestock-item-notes">${escapeHtml(it.notes)}</div>` : ''}
+            </div>
+            <div class="livestock-item-qty">×${it.quantity}</div>
+          </li>
+        `;
+      }
+
+      // ---- Add modal ----
       function openAddModal() {
         clearAlert(addModalAlert);
         speciesSearch.value = '';
         livestockQuantity.value = '1';
+        livestockPrice.value = '';
         livestockAddedDate.value = '';
         livestockNotes.value = '';
         selectedSpecies = null;
         currentResults = [];
         highlightIndex = -1;
+        addPhotoBlob = null;
+        addPhotoInput.value = '';
+        addPhotoPreview.style.display = 'none';
+        addPhotoBtn.style.display = '';
+        addPhotoHint.textContent = 'Optional. Photos are resized to ~800px to save space.';
         useCustomBtn.style.display = 'none';
         speciesHint.textContent = '↑↓ to highlight · Enter to select · or click a result';
         speciesResults.hidden = true;
@@ -455,11 +618,9 @@
       }
 
       function setSelected(species) {
-        // species is either a row from species table, or {custom: true, name: '...'}
         selectedSpecies = species;
         speciesSearchGroup.style.display = 'none';
         selectedSpeciesPanel.style.display = 'flex';
-
         if (species.custom) {
           selectedSpeciesName.innerHTML = `${escapeHtml(species.name)} <span class="custom-badge">custom</span>`;
           selectedSpeciesMeta.textContent = 'Not in the library — added as a custom entry.';
@@ -471,9 +632,7 @@
           if (species.scientific_name) parts.push(`<em>${escapeHtml(species.scientific_name)}</em>`);
           selectedSpeciesMeta.innerHTML = parts.join(' · ');
         }
-
         addSaveBtn.disabled = false;
-        // Move focus to quantity so user can keep going
         setTimeout(() => livestockQuantity.focus(), 50);
       }
 
@@ -496,38 +655,25 @@
       // ---- Typeahead ----
       async function searchSpecies(query) {
         if (!query || query.length < 2) {
-          currentResults = [];
-          highlightIndex = -1;
-          speciesResults.hidden = true;
-          useCustomBtn.style.display = 'none';
+          currentResults = []; highlightIndex = -1;
+          speciesResults.hidden = true; useCustomBtn.style.display = 'none';
           return;
         }
         const { data, error } = await supabase
           .from('species')
           .select('id, common_name, scientific_name, species_type, water_type')
           .or(`common_name.ilike.%${query}%,scientific_name.ilike.%${query}%`)
-          .order('common_name')
-          .limit(8);
-
-        if (error) {
-          currentResults = [];
-          speciesResults.hidden = true;
-          return;
-        }
-
+          .order('common_name').limit(8);
+        if (error) { currentResults = []; speciesResults.hidden = true; return; }
         currentResults = data || [];
         highlightIndex = currentResults.length > 0 ? 0 : -1;
-
         if (currentResults.length === 0) {
-          speciesResults.innerHTML = '';
-          speciesResults.hidden = true;
-          // Show "use custom" fallback
+          speciesResults.innerHTML = ''; speciesResults.hidden = true;
           customNamePreview.textContent = query;
           useCustomBtn.style.display = 'block';
           speciesHint.textContent = `No matches in library for "${query}"`;
           return;
         }
-
         useCustomBtn.style.display = 'none';
         speciesHint.textContent = `${currentResults.length} match${currentResults.length === 1 ? '' : 'es'} · ↑↓ to highlight, Enter to select`;
         renderResults();
@@ -535,32 +681,18 @@
       }
 
       function renderResults() {
-        speciesResults.innerHTML = currentResults
-          .map(
-            (s, i) => `
-              <li class="typeahead-item${i === highlightIndex ? ' active' : ''}"
-                  data-index="${i}"
-                  role="option"
-                  aria-selected="${i === highlightIndex}">
-                <div class="typeahead-name">${escapeHtml(s.common_name)}</div>
-                ${s.scientific_name ? `<div class="typeahead-sci">${escapeHtml(s.scientific_name)}</div>` : ''}
-                <div class="typeahead-meta">${capitalize(s.species_type)} · ${capitalize(s.water_type)}</div>
-                <div class="typeahead-pick">Pick</div>
-              </li>
-            `,
-          )
-          .join('');
-
+        speciesResults.innerHTML = currentResults.map((s, i) => `
+          <li class="typeahead-item${i === highlightIndex ? ' active' : ''}" data-index="${i}" role="option" aria-selected="${i === highlightIndex}">
+            <div class="typeahead-name">${escapeHtml(s.common_name)}</div>
+            ${s.scientific_name ? `<div class="typeahead-sci">${escapeHtml(s.scientific_name)}</div>` : ''}
+            <div class="typeahead-meta">${capitalize(s.species_type)} · ${capitalize(s.water_type)}</div>
+            <div class="typeahead-pick">Pick</div>
+          </li>
+        `).join('');
         speciesResults.querySelectorAll('.typeahead-item').forEach((el) => {
           const idx = parseInt(el.dataset.index, 10);
-          el.addEventListener('mousedown', (e) => {
-            e.preventDefault();
-            setSelected(currentResults[idx]);
-          });
-          el.addEventListener('mouseenter', () => {
-            highlightIndex = idx;
-            updateHighlight();
-          });
+          el.addEventListener('mousedown', (e) => { e.preventDefault(); setSelected(currentResults[idx]); });
+          el.addEventListener('mouseenter', () => { highlightIndex = idx; updateHighlight(); });
         });
       }
 
@@ -575,18 +707,15 @@
         const value = e.target.value.trim();
         clearTimeout(searchTimeout);
         if (value.length < 2) {
-          speciesResults.hidden = true;
-          useCustomBtn.style.display = 'none';
+          speciesResults.hidden = true; useCustomBtn.style.display = 'none';
           speciesHint.textContent = 'Keep typing — at least 2 characters';
           return;
         }
         speciesHint.textContent = 'Searching…';
         searchTimeout = setTimeout(() => searchSpecies(value), 180);
       });
-
       speciesSearch.addEventListener('keydown', (e) => {
         if (speciesResults.hidden || currentResults.length === 0) {
-          // If no results but Enter pressed and "use custom" button is showing, trigger it
           if (e.key === 'Enter' && useCustomBtn.style.display === 'block') {
             e.preventDefault();
             const name = speciesSearch.value.trim();
@@ -604,68 +733,110 @@
           updateHighlight();
         } else if (e.key === 'Enter') {
           e.preventDefault();
-          if (highlightIndex >= 0 && currentResults[highlightIndex]) {
-            setSelected(currentResults[highlightIndex]);
-          }
+          if (highlightIndex >= 0 && currentResults[highlightIndex]) setSelected(currentResults[highlightIndex]);
         } else if (e.key === 'Escape') {
-          if (!speciesResults.hidden) {
-            speciesResults.hidden = true;
-            e.stopPropagation(); // don't close modal yet
-          }
+          if (!speciesResults.hidden) { speciesResults.hidden = true; e.stopPropagation(); }
         }
       });
-
-      speciesSearch.addEventListener('blur', () => {
-        setTimeout(() => { speciesResults.hidden = true; }, 150);
-      });
-
-      speciesSearch.addEventListener('focus', () => {
-        if (currentResults.length > 0) speciesResults.hidden = false;
-      });
-
+      speciesSearch.addEventListener('blur', () => { setTimeout(() => { speciesResults.hidden = true; }, 150); });
+      speciesSearch.addEventListener('focus', () => { if (currentResults.length > 0) speciesResults.hidden = false; });
       useCustomBtn.addEventListener('click', () => {
         const name = speciesSearch.value.trim();
         if (name) setSelected({ custom: true, name });
       });
 
+      // ---- Photo handlers (Add modal) ----
+      addPhotoBtn.addEventListener('click', () => addPhotoInput.click());
+      addPhotoInput.addEventListener('change', async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+          showAlert(addModalAlert, 'Please choose a JPEG, PNG, or WebP image.');
+          addPhotoInput.value = '';
+          return;
+        }
+        addPhotoHint.textContent = 'Resizing…';
+        try {
+          const blob = await resizeImage(file, 800);
+          addPhotoBlob = blob;
+          const previewUrl = URL.createObjectURL(blob);
+          addPhotoPreviewImg.src = previewUrl;
+          addPhotoPreview.style.display = 'block';
+          addPhotoBtn.style.display = 'none';
+          addPhotoHint.textContent = `Ready (${Math.round(blob.size / 1024)} KB after resize)`;
+        } catch (err) {
+          showAlert(addModalAlert, 'Could not process that image.');
+          addPhotoHint.textContent = 'Optional. Photos are resized to ~800px to save space.';
+        }
+      });
+      addPhotoRemove.addEventListener('click', () => {
+        addPhotoBlob = null;
+        addPhotoInput.value = '';
+        addPhotoPreview.style.display = 'none';
+        addPhotoBtn.style.display = '';
+        addPhotoHint.textContent = 'Optional. Photos are resized to ~800px to save space.';
+      });
+
       // ---- Save Add ----
       async function saveAdd() {
         clearAlert(addModalAlert);
-        if (!selectedSpecies) {
-          showAlert(addModalAlert, 'Pick a species or use a custom entry first.');
-          return;
-        }
+        if (!selectedSpecies) { showAlert(addModalAlert, 'Pick a species or use a custom entry first.'); return; }
         const qty = parseInt(livestockQuantity.value, 10);
-        if (!qty || qty < 1) {
-          showAlert(addModalAlert, 'Quantity must be at least 1.');
-          return;
+        if (!qty || qty < 1) { showAlert(addModalAlert, 'Quantity must be at least 1.'); return; }
+        let price = null;
+        if (livestockPrice.value !== '' && livestockPrice.value !== null) {
+          const p = parseFloat(livestockPrice.value);
+          if (Number.isNaN(p) || p < 0) { showAlert(addModalAlert, 'Price must be a positive number.'); return; }
+          price = p;
         }
 
         addSaveBtn.disabled = true;
         addSaveBtn.textContent = 'Adding…';
 
-        const { error } = await supabase.rpc('upsert_livestock', {
+        const { data: row, error } = await supabase.rpc('upsert_livestock', {
           p_tank_id: tankId,
           p_species_id: selectedSpecies.custom ? null : selectedSpecies.id,
           p_custom_name: selectedSpecies.custom ? selectedSpecies.name : null,
           p_quantity: qty,
           p_added_date: livestockAddedDate.value || null,
           p_notes: livestockNotes.value.trim() || null,
+          p_price_per_unit: price,
         });
-
-        addSaveBtn.disabled = false;
-        addSaveBtn.textContent = 'Add to Tank';
 
         if (error) {
           showAlert(addModalAlert, `Could not add: ${error.message}`);
+          addSaveBtn.disabled = false; addSaveBtn.textContent = 'Add to Tank';
           return;
         }
+
+        // If user attached a photo, upload it then update the livestock row.
+        if (addPhotoBlob && row?.id) {
+          try {
+            addSaveBtn.textContent = 'Uploading photo…';
+            const path = `${user.id}/${row.id}/${Date.now()}.jpg`;
+            const { error: upErr } = await supabase.storage
+              .from('livestock-photos')
+              .upload(path, addPhotoBlob, { contentType: 'image/jpeg', upsert: false });
+            if (upErr) throw upErr;
+            const { error: updErr } = await supabase
+              .from('livestock').update({ photo_url: path }).eq('id', row.id);
+            if (updErr) throw updErr;
+          } catch (err) {
+            // Non-fatal — the row was created, photo just didn't attach.
+            showAlert(addModalAlert, `Saved, but photo upload failed: ${err.message}`, 'error');
+            addSaveBtn.disabled = false; addSaveBtn.textContent = 'Add to Tank';
+            await loadLivestock();
+            return;
+          }
+        }
+
+        addSaveBtn.disabled = false; addSaveBtn.textContent = 'Add to Tank';
         closeAddModal();
         await loadLivestock();
       }
 
       // ---- Edit modal ----
-      function openEditModal(id) {
+      async function openEditModal(id) {
         const item = livestock.find((x) => x.id === id);
         if (!item) return;
         clearAlert(editModalAlert);
@@ -677,8 +848,33 @@
           ${sci ? `<div class="livestock-item-sci">${escapeHtml(sci)}</div>` : ''}
         `;
         editQuantity.value = item.quantity;
+        editPrice.value = item.price_per_unit ?? '';
         editAddedDate.value = item.added_date || '';
         editNotes.value = item.notes || '';
+
+        // Photo state for edit
+        editPhotoBlob = null;
+        editPhotoCleared = false;
+        editPhotoInput.value = '';
+        editPhotoExistingPath = item.photo_url || null;
+        if (editPhotoExistingPath) {
+          const url = signedUrls[editPhotoExistingPath] || await getSignedPhotoUrl(editPhotoExistingPath);
+          if (url) {
+            editPhotoPreviewImg.src = url;
+            editPhotoPreview.style.display = 'block';
+            editPhotoBtn.style.display = 'none';
+            editPhotoHint.textContent = 'Photo on file. Click × to remove, or pick a new one.';
+          } else {
+            editPhotoPreview.style.display = 'none';
+            editPhotoBtn.style.display = '';
+            editPhotoHint.textContent = 'Photos are resized to ~800px to save space.';
+          }
+        } else {
+          editPhotoPreview.style.display = 'none';
+          editPhotoBtn.style.display = '';
+          editPhotoHint.textContent = 'Photos are resized to ~800px to save space.';
+        }
+
         editModal.style.display = 'flex';
         setTimeout(() => editQuantity.focus(), 50);
       }
@@ -687,27 +883,100 @@
         editModal.style.display = 'none';
       }
 
+      editPhotoBtn.addEventListener('click', () => editPhotoInput.click());
+      editPhotoInput.addEventListener('change', async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+          showAlert(editModalAlert, 'Please choose a JPEG, PNG, or WebP image.');
+          editPhotoInput.value = '';
+          return;
+        }
+        editPhotoHint.textContent = 'Resizing…';
+        try {
+          const blob = await resizeImage(file, 800);
+          editPhotoBlob = blob;
+          editPhotoCleared = false;
+          const previewUrl = URL.createObjectURL(blob);
+          editPhotoPreviewImg.src = previewUrl;
+          editPhotoPreview.style.display = 'block';
+          editPhotoBtn.style.display = 'none';
+          editPhotoHint.textContent = `Ready (${Math.round(blob.size / 1024)} KB after resize)`;
+        } catch (err) {
+          showAlert(editModalAlert, 'Could not process that image.');
+        }
+      });
+      editPhotoRemove.addEventListener('click', () => {
+        editPhotoBlob = null;
+        editPhotoInput.value = '';
+        editPhotoPreview.style.display = 'none';
+        editPhotoBtn.style.display = '';
+        if (editPhotoExistingPath) {
+          editPhotoCleared = true;
+          editPhotoHint.textContent = 'Photo will be removed when you save.';
+        } else {
+          editPhotoHint.textContent = 'Photos are resized to ~800px to save space.';
+        }
+      });
+
       async function saveEdit() {
         clearAlert(editModalAlert);
         const id = editLivestockIdEl.value;
         if (!id) return;
         const qty = parseInt(editQuantity.value, 10);
-        if (!qty || qty < 1) {
-          showAlert(editModalAlert, 'Quantity must be at least 1.');
-          return;
+        if (!qty || qty < 1) { showAlert(editModalAlert, 'Quantity must be at least 1.'); return; }
+        let price = null;
+        if (editPrice.value !== '' && editPrice.value !== null) {
+          const p = parseFloat(editPrice.value);
+          if (Number.isNaN(p) || p < 0) { showAlert(editModalAlert, 'Price must be a positive number.'); return; }
+          price = p;
         }
-        const { error } = await supabase
-          .from('livestock')
-          .update({
+
+        const editSaveBtn = document.getElementById('editModalSaveBtn');
+        editSaveBtn.disabled = true;
+        editSaveBtn.textContent = 'Saving…';
+
+        let newPhotoPath = undefined; // undefined = don't change, null = clear, string = new path
+
+        try {
+          if (editPhotoBlob) {
+            // upload new photo first
+            editSaveBtn.textContent = 'Uploading photo…';
+            const path = `${user.id}/${id}/${Date.now()}.jpg`;
+            const { error: upErr } = await supabase.storage
+              .from('livestock-photos')
+              .upload(path, editPhotoBlob, { contentType: 'image/jpeg', upsert: false });
+            if (upErr) throw upErr;
+            newPhotoPath = path;
+            // delete the old one (best-effort)
+            if (editPhotoExistingPath) {
+              await supabase.storage.from('livestock-photos').remove([editPhotoExistingPath]);
+            }
+          } else if (editPhotoCleared && editPhotoExistingPath) {
+            // user cleared existing photo
+            await supabase.storage.from('livestock-photos').remove([editPhotoExistingPath]);
+            newPhotoPath = null;
+          }
+
+          editSaveBtn.textContent = 'Saving…';
+          const updates = {
             quantity: qty,
+            price_per_unit: price,
             added_date: editAddedDate.value || null,
             notes: editNotes.value.trim() || null,
-          })
-          .eq('id', id);
-        if (error) {
-          showAlert(editModalAlert, `Save failed: ${error.message}`);
+          };
+          if (newPhotoPath !== undefined) updates.photo_url = newPhotoPath;
+
+          const { error } = await supabase
+            .from('livestock').update(updates).eq('id', id);
+          if (error) throw error;
+        } catch (err) {
+          showAlert(editModalAlert, `Save failed: ${err.message}`);
+          editSaveBtn.disabled = false; editSaveBtn.textContent = 'Save';
           return;
         }
+
+        editSaveBtn.disabled = false; editSaveBtn.textContent = 'Save';
         closeEditModal();
         await loadLivestock();
       }
@@ -718,11 +987,13 @@
         const item = livestock.find((x) => x.id === id);
         const name = displayName(item);
         if (!confirm(`Remove ${name} from this tank?\n\nThis cannot be undone.`)) return;
-        const { error } = await supabase.from('livestock').delete().eq('id', id);
-        if (error) {
-          showAlert(editModalAlert, `Delete failed: ${error.message}`);
-          return;
+
+        // Best-effort: remove photo first
+        if (item?.photo_url) {
+          await supabase.storage.from('livestock-photos').remove([item.photo_url]);
         }
+        const { error } = await supabase.from('livestock').delete().eq('id', id);
+        if (error) { showAlert(editModalAlert, `Delete failed: ${error.message}`); return; }
         closeEditModal();
         await loadLivestock();
       }
@@ -756,13 +1027,9 @@
       const sidebar = document.getElementById('appSidebar');
       const sidebarBackdrop = document.getElementById('appSidebarBackdrop');
       document.getElementById('navMobileToggle').addEventListener('click', () => {
-        sidebar.classList.add('open');
-        sidebarBackdrop.classList.add('open');
+        sidebar.classList.add('open'); sidebarBackdrop.classList.add('open');
       });
-      const closeNav = () => {
-        sidebar.classList.remove('open');
-        sidebarBackdrop.classList.remove('open');
-      };
+      const closeNav = () => { sidebar.classList.remove('open'); sidebarBackdrop.classList.remove('open'); };
       document.getElementById('navSidebarClose').addEventListener('click', closeNav);
       sidebarBackdrop.addEventListener('click', closeNav);
     </script>
