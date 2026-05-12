@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0c4a6e" />
+    <title>Bioload Planner — AquaHub</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="manifest" href="/manifest.json" />
+  </head>
+  <body class="app-body">
+    <div class="app-layout">
+      <button class="nav-mobile-toggle" id="navMobileToggle" aria-label="Open menu" type="button">☰</button>
+
+      <aside class="app-sidebar" id="appSidebar">
+        <div class="app-sidebar-head">
+          <a href="/" class="app-sidebar-brand">
+            <span class="app-sidebar-brand-icon">🐠</span>
+            <span class="app-sidebar-brand-text">AquaHub</span>
+          </a>
+          <button class="nav-sidebar-close" id="navSidebarClose" aria-label="Close menu" type="button">×</button>
+        </div>
+        <nav class="app-sidebar-nav">
+          <a href="/app.html"><span class="nav-icon">🏠</span><span class="nav-label">Dashboard</span></a>
+          <a href="/tanks.html"><span class="nav-icon">🐠</span><span class="nav-label">My Tanks</span></a>
+          <a href="/species.html"><span class="nav-icon">🌿</span><span class="nav-label">Species</span></a>
+          <a href="/bioload.html" class="active"><span class="nav-icon">📊</span><span class="nav-label">Bioload</span></a>
+          <span class="app-sidebar-disabled"><span class="nav-icon">📈</span><span class="nav-label">Trends</span><span class="nav-soon">Soon</span></span>
+        </nav>
+        <div class="app-sidebar-foot">
+          <div class="app-user" id="appUser">…</div>
+          <button class="btn-secondary btn-sidebar" id="logoutBtn" type="button">Sign Out</button>
+        </div>
+      </aside>
+
+      <div class="app-sidebar-backdrop" id="appSidebarBackdrop"></div>
+
+      <main class="app-content">
+        <header class="app-content-head">
+          <div>
+            <h1 class="page-title">Bioload Planner</h1>
+            <p class="text-muted">Plan stocking before you buy. Numbers update live.</p>
+          </div>
+        </header>
+
+        <!-- Tank config card -->
+        <div class="card">
+          <h2>Tank</h2>
+          <div class="form-group">
+            <label class="form-label" for="loadTank">Load from one of your tanks (optional)</label>
+            <select id="loadTank" class="form-input">
+              <option value="">— start fresh —</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="plannerVolume">Volume (gallons) *</label>
+              <input id="plannerVolume" type="number" class="form-input" min="1" step="0.5" value="20" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="plannerType">Tank type</label>
+              <select id="plannerType" class="form-input">
+                <option value="freshwater">Freshwater</option>
+                <option value="planted">Planted (freshwater)</option>
+                <option value="saltwater">Saltwater</option>
+                <option value="reef">Reef</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Add species card -->
+        <div class="card">
+          <div class="card-head-row">
+            <h2>Stocking plan</h2>
+            <button id="addPlannerBtn" class="btn-primary btn-inline" type="button">+ Add species</button>
+          </div>
+
+          <div id="plannerEmpty" class="empty-state" style="padding: 24px 10px">
+            <div class="empty-icon">🐠</div>
+            <p class="text-muted">No species in your plan yet. Tap "+ Add species" to start.</p>
+          </div>
+
+          <ul id="plannerList" class="bioload-contributor-list" style="display: none"></ul>
+        </div>
+
+        <!-- Bioload result card -->
+        <div class="card bioload-card">
+          <div class="card-head-row">
+            <h2>Result</h2>
+            <span id="plannerStatusBadge" class="bioload-status" style="display: none"></span>
+          </div>
+
+          <div id="plannerBioloadEmpty" class="empty-state" style="padding: 24px 10px">
+            <div class="empty-icon">📊</div>
+            <p class="text-muted">Add at least one species to see your score.</p>
+          </div>
+
+          <div id="plannerBioloadBody" style="display: none">
+            <div class="bioload-meter">
+              <div class="bioload-meter-track">
+                <div class="bioload-meter-fill" id="plannerMeterFill"></div>
+                <div class="bioload-meter-marker" style="left: 75%"></div>
+                <div class="bioload-meter-marker" style="left: 100%"></div>
+              </div>
+              <div class="bioload-meter-labels">
+                <span>0%</span>
+                <span>75%</span>
+                <span>100%</span>
+                <span>130%+</span>
+              </div>
+            </div>
+
+            <div class="bioload-summary">
+              <div class="bioload-stat">
+                <div class="bioload-stat-label">Stocking</div>
+                <div class="bioload-stat-value" id="plannerPercent">—</div>
+              </div>
+              <div class="bioload-stat">
+                <div class="bioload-stat-label">Load</div>
+                <div class="bioload-stat-value"><span id="plannerNet">—</span> / <span id="plannerCapacity">—</span></div>
+              </div>
+              <div class="bioload-stat" id="plannerOffsetStat" style="display: none">
+                <div class="bioload-stat-label">Plant offset</div>
+                <div class="bioload-stat-value bioload-offset"><span id="plannerOffsetValue">—</span></div>
+              </div>
+            </div>
+
+            <div id="plannerWarnings" class="bioload-warnings"></div>
+
+            <p class="bioload-method-note">
+              Numbers update live as you change the plan. 1 unit ≈ one neon tetra's bioload.
+              Capacity = volume × stocking factor for the tank type.
+              Plant offset is capped at 40% of total load.
+            </p>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Add species modal (reuses the typeahead pattern from tank.html) -->
+    <div id="addPlannerModal" class="modal-backdrop" style="display: none">
+      <div class="modal" role="dialog" aria-modal="true">
+        <div class="modal-header">
+          <h3>Add species to plan</h3>
+          <button class="modal-close" id="plannerModalCloseBtn" type="button" aria-label="Close">×</button>
+        </div>
+        <div class="modal-body">
+          <div id="plannerModalAlert" class="alert" role="alert"></div>
+
+          <div id="plannerSelectedPanel" class="selected-species-panel" style="display: none">
+            <div class="selected-species-info">
+              <div class="selected-species-label">Selected species</div>
+              <div class="selected-species-name" id="plannerSelectedName">—</div>
+              <div class="selected-species-meta" id="plannerSelectedMeta"></div>
+            </div>
+            <button type="button" class="btn-link-inline" id="plannerChangeBtn">Change</button>
+          </div>
+
+          <div class="form-group" id="plannerSearchGroup">
+            <label class="form-label" for="plannerSearch">Search the species library</label>
+            <div class="typeahead-wrap">
+              <input
+                id="plannerSearch"
+                type="text"
+                class="form-input"
+                placeholder="Start typing a species name…"
+                autocomplete="off"
+              />
+              <ul id="plannerResults" class="typeahead-results" hidden role="listbox"></ul>
+            </div>
+            <p class="form-hint" id="plannerHint">↑↓ to highlight · Enter to select · or click a result</p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="plannerQty">Quantity *</label>
+            <input id="plannerQty" type="number" class="form-input" min="1" max="9999" value="1" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <div class="modal-footer-right">
+            <button class="btn-secondary" id="plannerCancelBtn" type="button">Cancel</button>
+            <button id="plannerAddSaveBtn" class="btn-primary btn-inline" type="button" disabled>Add</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      import { supabase, requireAuth } from '/lib/supabase.js';
+      import { computeBioload, statusMeta } from '/lib/bioload.js';
+
+      const user = await requireAuth();
+      if (!user) throw new Error('not authenticated');
+      document.getElementById('appUser').textContent = user.email;
+
+      // ---- DOM refs ----
+      const loadTankSelect = document.getElementById('loadTank');
+      const plannerVolume = document.getElementById('plannerVolume');
+      const plannerType = document.getElementById('plannerType');
+      const plannerList = document.getElementById('plannerList');
+      const plannerEmpty = document.getElementById('plannerEmpty');
+
+      const modal = document.getElementById('addPlannerModal');
+      const modalAlert = document.getElementById('plannerModalAlert');
+      const plannerSearchGroup = document.getElementById('plannerSearchGroup');
+      const selectedPanel = document.getElementById('plannerSelectedPanel');
+      const selectedName = document.getElementById('plannerSelectedName');
+      const selectedMeta = document.getElementById('plannerSelectedMeta');
+      const searchInput = document.getElementById('plannerSearch');
+      const resultsList = document.getElementById('plannerResults');
+      const searchHint = document.getElementById('plannerHint');
+      const qtyInput = document.getElementById('plannerQty');
+      const saveBtn = document.getElementById('plannerAddSaveBtn');
+
+      // ---- State ----
+      let plan = [];           // [{ species, quantity }]
+      let selectedSpecies = null;
+      let currentResults = [];
+      let highlightIndex = -1;
+      let searchTimeout;
+
+      // ---- Helpers ----
+      function escapeHtml(s) {
+        if (s === null || s === undefined) return '';
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+      }
+      function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+      function showAlert(el, message, type = 'error') {
+        el.textContent = message; el.className = `alert show alert-${type}`;
+      }
+      function clearAlert(el) { el.className = 'alert'; el.textContent = ''; }
+
+      // ---- Load tank dropdown ----
+      async function loadTanks() {
+        const { data, error } = await supabase
+          .from('tanks').select('id, name, volume_gallons, tank_type').order('name');
+        if (error || !data) return;
+        for (const t of data) {
+          const opt = document.createElement('option');
+          opt.value = t.id;
+          opt.textContent = `${t.name} (${t.volume_gallons ?? '?'}g, ${capitalize(t.tank_type)})`;
+          loadTankSelect.appendChild(opt);
+        }
+      }
+
+      loadTankSelect.addEventListener('change', async (e) => {
+        const tankId = e.target.value;
+        if (!tankId) return;
+        const { data: tank } = await supabase.from('tanks').select('*').eq('id', tankId).maybeSingle();
+        if (!tank) return;
+        plannerVolume.value = tank.volume_gallons || '';
+        plannerType.value = tank.tank_type || 'freshwater';
+
+        // Load livestock from this tank into the plan
+        const { data: ls } = await supabase
+          .from('livestock')
+          .select('quantity, custom_name, species_id, species ( id, common_name, scientific_name, species_type, max_size_inches, diet, bioload_score, nitrate_offset_per_day )')
+          .eq('tank_id', tankId);
+        plan = (ls || [])
+          .filter((x) => x.species) // skip custom-only entries — we need species data for accurate bioload
+          .map((x) => ({ species: x.species, quantity: x.quantity }));
+        renderPlan();
+      });
+
+      // ---- Plan render ----
+      function renderPlan() {
+        if (plan.length === 0) {
+          plannerEmpty.style.display = 'block';
+          plannerList.style.display = 'none';
+        } else {
+          plannerEmpty.style.display = 'none';
+          plannerList.style.display = 'block';
+          plannerList.innerHTML = plan.map((p, i) => `
+            <li class="bioload-contributor planner-row">
+              <div class="bioload-contributor-name">
+                ${escapeHtml(p.species.common_name)}
+                <span class="bioload-contributor-qty">× ${p.quantity}</span>
+              </div>
+              <button type="button" class="planner-remove" data-index="${i}" aria-label="Remove">×</button>
+            </li>
+          `).join('');
+          plannerList.querySelectorAll('.planner-remove').forEach((btn) => {
+            btn.addEventListener('click', () => {
+              const idx = parseInt(btn.dataset.index, 10);
+              plan.splice(idx, 1);
+              renderPlan();
+            });
+          });
+        }
+        renderResult();
+      }
+
+      // ---- Compute and render result ----
+      function renderResult() {
+        const volume = parseFloat(plannerVolume.value);
+        const empty = document.getElementById('plannerBioloadEmpty');
+        const body = document.getElementById('plannerBioloadBody');
+        const badge = document.getElementById('plannerStatusBadge');
+
+        if (!plan.length || !volume) {
+          empty.style.display = 'block';
+          body.style.display = 'none';
+          badge.style.display = 'none';
+          return;
+        }
+        empty.style.display = 'none';
+
+        const livestockShape = plan.map((p) => ({
+          id: p.species.id,
+          quantity: p.quantity,
+          species: p.species,
+          custom_name: null,
+          species_id: p.species.id,
+        }));
+        const tank = { tank_type: plannerType.value, volume_gallons: volume };
+        const result = computeBioload(tank, livestockShape);
+        const meta = statusMeta(result.status);
+
+        badge.textContent = `${meta.emoji} ${meta.label}`;
+        badge.className = `bioload-status bioload-tone-${meta.tone}`;
+        badge.style.display = '';
+
+        const fill = document.getElementById('plannerMeterFill');
+        fill.style.width = `${Math.min(result.percent, 100)}%`;
+        fill.className = `bioload-meter-fill bioload-tone-${meta.tone}`;
+
+        document.getElementById('plannerPercent').textContent = `${Math.round(result.percent)}%`;
+        document.getElementById('plannerNet').textContent = result.netLoad.toFixed(1);
+        document.getElementById('plannerCapacity').textContent = result.capacity.toFixed(1);
+
+        const offsetStat = document.getElementById('plannerOffsetStat');
+        if (result.offsetApplied > 0) {
+          offsetStat.style.display = '';
+          const reduction = result.rawLoad > 0 ? Math.round((result.offsetApplied / result.rawLoad) * 100) : 0;
+          document.getElementById('plannerOffsetValue').textContent =
+            `−${result.offsetApplied.toFixed(1)} (${reduction}%)`;
+        } else {
+          offsetStat.style.display = 'none';
+        }
+
+        const warnEl = document.getElementById('plannerWarnings');
+        warnEl.innerHTML = result.warnings
+          .map((w) => `<div class="bioload-warning">${escapeHtml(w)}</div>`).join('');
+
+        body.style.display = 'block';
+      }
+
+      plannerVolume.addEventListener('input', renderResult);
+      plannerType.addEventListener('change', renderResult);
+
+      // ---- Add species modal ----
+      function openModal() {
+        clearAlert(modalAlert);
+        searchInput.value = '';
+        qtyInput.value = '1';
+        selectedSpecies = null;
+        currentResults = [];
+        highlightIndex = -1;
+        searchHint.textContent = '↑↓ to highlight · Enter to select · or click a result';
+        resultsList.hidden = true;
+        saveBtn.disabled = true;
+        selectedPanel.style.display = 'none';
+        plannerSearchGroup.style.display = '';
+        modal.style.display = 'flex';
+        setTimeout(() => searchInput.focus(), 50);
+      }
+      function closeModal() { modal.style.display = 'none'; }
+
+      async function searchSpecies(query) {
+        if (!query || query.length < 2) {
+          currentResults = []; resultsList.hidden = true; return;
+        }
+        const { data, error } = await supabase
+          .from('species')
+          .select('id, common_name, scientific_name, species_type, water_type, max_size_inches, diet, bioload_score, nitrate_offset_per_day')
+          .or(`common_name.ilike.%${query}%,scientific_name.ilike.%${query}%`)
+          .order('common_name').limit(8);
+        if (error || !data || data.length === 0) {
+          resultsList.hidden = true;
+          searchHint.textContent = `No library matches for "${query}"`;
+          return;
+        }
+        currentResults = data;
+        highlightIndex = 0;
+        searchHint.textContent = `${data.length} match${data.length === 1 ? '' : 'es'} · ↑↓ to highlight, Enter to select`;
+        renderSearchResults();
+        resultsList.hidden = false;
+      }
+
+      function renderSearchResults() {
+        resultsList.innerHTML = currentResults.map((s, i) => `
+          <li class="typeahead-item${i === highlightIndex ? ' active' : ''}" data-index="${i}">
+            <div class="typeahead-name">${escapeHtml(s.common_name)}</div>
+            ${s.scientific_name ? `<div class="typeahead-sci">${escapeHtml(s.scientific_name)}</div>` : ''}
+            <div class="typeahead-meta">${capitalize(s.species_type)} · ${capitalize(s.water_type)}</div>
+            <div class="typeahead-pick">Pick</div>
+          </li>
+        `).join('');
+        resultsList.querySelectorAll('.typeahead-item').forEach((el) => {
+          const idx = parseInt(el.dataset.index, 10);
+          el.addEventListener('mousedown', (e) => { e.preventDefault(); selectSpecies(currentResults[idx]); });
+          el.addEventListener('mouseenter', () => { highlightIndex = idx; updateHighlight(); });
+        });
+      }
+      function updateHighlight() {
+        resultsList.querySelectorAll('.typeahead-item').forEach((el, i) => {
+          el.classList.toggle('active', i === highlightIndex);
+        });
+      }
+
+      function selectSpecies(s) {
+        selectedSpecies = s;
+        plannerSearchGroup.style.display = 'none';
+        selectedPanel.style.display = 'flex';
+        selectedName.textContent = s.common_name;
+        const parts = [];
+        if (s.species_type) parts.push(capitalize(s.species_type));
+        if (s.water_type) parts.push(capitalize(s.water_type));
+        if (s.scientific_name) parts.push(`<em>${escapeHtml(s.scientific_name)}</em>`);
+        selectedMeta.innerHTML = parts.join(' · ');
+        saveBtn.disabled = false;
+        setTimeout(() => qtyInput.focus(), 50);
+      }
+
+      function clearSelected() {
+        selectedSpecies = null;
+        selectedPanel.style.display = 'none';
+        plannerSearchGroup.style.display = '';
+        saveBtn.disabled = true;
+        searchInput.value = '';
+        currentResults = []; highlightIndex = -1;
+        resultsList.hidden = true;
+        searchHint.textContent = '↑↓ to highlight · Enter to select · or click a result';
+        setTimeout(() => searchInput.focus(), 50);
+      }
+
+      searchInput.addEventListener('input', (e) => {
+        const v = e.target.value.trim();
+        clearTimeout(searchTimeout);
+        if (v.length < 2) { resultsList.hidden = true; searchHint.textContent = 'Keep typing — at least 2 characters'; return; }
+        searchHint.textContent = 'Searching…';
+        searchTimeout = setTimeout(() => searchSpecies(v), 180);
+      });
+      searchInput.addEventListener('keydown', (e) => {
+        if (resultsList.hidden || currentResults.length === 0) return;
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          highlightIndex = (highlightIndex + 1) % currentResults.length; updateHighlight();
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          highlightIndex = (highlightIndex - 1 + currentResults.length) % currentResults.length; updateHighlight();
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (highlightIndex >= 0) selectSpecies(currentResults[highlightIndex]);
+        }
+      });
+      searchInput.addEventListener('blur', () => { setTimeout(() => { resultsList.hidden = true; }, 150); });
+
+      document.getElementById('plannerChangeBtn').addEventListener('click', clearSelected);
+
+      saveBtn.addEventListener('click', () => {
+        if (!selectedSpecies) return;
+        const qty = parseInt(qtyInput.value, 10);
+        if (!qty || qty < 1) { showAlert(modalAlert, 'Quantity must be at least 1.'); return; }
+
+        // Merge with existing same species
+        const existing = plan.find((p) => p.species.id === selectedSpecies.id);
+        if (existing) {
+          existing.quantity += qty;
+        } else {
+          plan.push({ species: selectedSpecies, quantity: qty });
+        }
+        renderPlan();
+        closeModal();
+      });
+
+      document.getElementById('addPlannerBtn').addEventListener('click', openModal);
+      document.getElementById('plannerModalCloseBtn').addEventListener('click', closeModal);
+      document.getElementById('plannerCancelBtn').addEventListener('click', closeModal);
+      modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.style.display !== 'none') closeModal();
+      });
+
+      // ---- Sidebar / logout ----
+      document.getElementById('logoutBtn').addEventListener('click', async () => {
+        await supabase.auth.signOut();
+        window.location.href = '/login.html';
+      });
+      const sidebar = document.getElementById('appSidebar');
+      const sidebarBackdrop = document.getElementById('appSidebarBackdrop');
+      document.getElementById('navMobileToggle').addEventListener('click', () => {
+        sidebar.classList.add('open'); sidebarBackdrop.classList.add('open');
+      });
+      const closeNav = () => { sidebar.classList.remove('open'); sidebarBackdrop.classList.remove('open'); };
+      document.getElementById('navSidebarClose').addEventListener('click', closeNav);
+      sidebarBackdrop.addEventListener('click', closeNav);
+
+      // ---- Boot ----
+      await loadTanks();
+      renderPlan();
+    </script>
+  </body>
+</html>
