@@ -25,7 +25,7 @@
           <a href="/app.html"><span class="nav-icon">🏠</span><span class="nav-label">Dashboard</span></a>
           <a href="/tanks.html" class="active"><span class="nav-icon">🐠</span><span class="nav-label">My Tanks</span></a>
           <a href="/species.html"><span class="nav-icon">🌿</span><span class="nav-label">Species</span></a>
-          <span class="app-sidebar-disabled"><span class="nav-icon">📊</span><span class="nav-label">Bioload</span><span class="nav-soon">Soon</span></span>
+          <a href="/bioload.html"><span class="nav-icon">📊</span><span class="nav-label">Bioload</span></a>
           <span class="app-sidebar-disabled"><span class="nav-icon">📈</span><span class="nav-label">Trends</span><span class="nav-soon">Soon</span></span>
         </nav>
 
@@ -95,9 +95,59 @@
               <p class="text-muted">Coming soon — log temperature, pH, ammonia, nitrite, nitrate, gH and kH over time.</p>
             </div>
 
-            <div class="card">
-              <h2>Bioload</h2>
-              <p class="text-muted">Coming soon — once you've added livestock, AquaHub will calculate the tank's bioload and how much your plants offset it.</p>
+            <div class="card bioload-card">
+              <div class="card-head-row">
+                <h2>Bioload</h2>
+                <span id="bioloadStatusBadge" class="bioload-status" style="display: none"></span>
+              </div>
+              <div id="bioloadEmpty" class="empty-state" style="display: none; padding: 28px 10px;">
+                <div class="empty-icon">📊</div>
+                <p class="text-muted">Add livestock to see your tank's bioload score.</p>
+              </div>
+              <div id="bioloadVolumeWarning" class="alert alert-error" style="display: none">
+                Set this tank's volume to enable bioload scoring.
+              </div>
+              <div id="bioloadBody" style="display: none">
+                <div class="bioload-meter">
+                  <div class="bioload-meter-track">
+                    <div class="bioload-meter-fill" id="bioloadMeterFill"></div>
+                    <div class="bioload-meter-marker" style="left: 75%"></div>
+                    <div class="bioload-meter-marker" style="left: 100%"></div>
+                  </div>
+                  <div class="bioload-meter-labels">
+                    <span>0%</span>
+                    <span>75%</span>
+                    <span>100%</span>
+                    <span>130%+</span>
+                  </div>
+                </div>
+
+                <div class="bioload-summary">
+                  <div class="bioload-stat">
+                    <div class="bioload-stat-label">Stocking</div>
+                    <div class="bioload-stat-value" id="bioloadPercent">—</div>
+                  </div>
+                  <div class="bioload-stat">
+                    <div class="bioload-stat-label">Load</div>
+                    <div class="bioload-stat-value"><span id="bioloadNet">—</span> / <span id="bioloadCapacity">—</span></div>
+                  </div>
+                  <div class="bioload-stat" id="bioloadOffsetStat" style="display: none">
+                    <div class="bioload-stat-label">Plant offset</div>
+                    <div class="bioload-stat-value bioload-offset"><span id="bioloadOffsetValue">—</span></div>
+                  </div>
+                </div>
+
+                <div id="bioloadWarnings" class="bioload-warnings"></div>
+
+                <details class="bioload-breakdown">
+                  <summary>Bioload breakdown by species</summary>
+                  <ul id="bioloadContributorList" class="bioload-contributor-list"></ul>
+                  <p class="bioload-method-note">
+                    Calculated from each species' bioload score (1.0 = one neon tetra), with a stocking factor for the tank type.
+                    Plant offset uses estimated nitrate removal per plant per day, capped at 40% of total load.
+                  </p>
+                </details>
+              </div>
             </div>
           </div>
         </div>
@@ -257,6 +307,7 @@
 
     <script type="module">
       import { supabase, requireAuth } from '/lib/supabase.js';
+      import { computeBioload, statusMeta } from '/lib/bioload.js';
 
       const user = await requireAuth();
       if (!user) throw new Error('not authenticated');
@@ -320,6 +371,7 @@
       const editPhotoHint = document.getElementById('editPhotoHint');
 
       // ---- State ----
+      let currentTank = null;
       let livestock = [];
       let signedUrls = {}; // photo_url -> resolved URL
       let selectedSpecies = null;
@@ -442,6 +494,7 @@
         if (error || !tank) {
           showError();
         } else {
+          currentTank = tank;
           document.getElementById('tankTitle').textContent = tank.name;
           document.getElementById('tankSubtitle').textContent =
             `${capitalize(tank.tank_type)}${tank.volume_gallons ? ` · ${tank.volume_gallons} gallons` : ''}`;
@@ -465,7 +518,7 @@
         signedUrls = {}; // clear cache on reload
         const { data, error } = await supabase
           .from('livestock')
-          .select('id, quantity, added_date, notes, custom_name, species_id, price_per_unit, photo_url, species ( id, common_name, scientific_name, species_type )')
+          .select('id, quantity, added_date, notes, custom_name, species_id, price_per_unit, photo_url, species ( id, common_name, scientific_name, species_type, max_size_inches, diet, bioload_score, nitrate_offset_per_day )')
           .eq('tank_id', tankId)
           .order('created_at', { ascending: true });
 
@@ -524,6 +577,7 @@
         if (livestock.length === 0) {
           livestockEmpty.style.display = 'block';
           livestockGroups.innerHTML = '';
+          renderBioload();
           return;
         }
         livestockEmpty.style.display = 'none';
@@ -549,6 +603,102 @@
         livestockGroups.querySelectorAll('.livestock-item').forEach((row) => {
           row.addEventListener('click', () => openEditModal(row.dataset.id));
         });
+
+        renderBioload();
+      }
+
+      // ---- Bioload card ----
+      function renderBioload() {
+        const card = document.querySelector('.bioload-card');
+        if (!card || !currentTank) return;
+
+        const empty = document.getElementById('bioloadEmpty');
+        const volumeWarn = document.getElementById('bioloadVolumeWarning');
+        const body = document.getElementById('bioloadBody');
+        const badge = document.getElementById('bioloadStatusBadge');
+
+        // No livestock at all → empty state
+        if (!livestock.length) {
+          empty.style.display = 'block';
+          body.style.display = 'none';
+          volumeWarn.style.display = 'none';
+          badge.style.display = 'none';
+          return;
+        }
+        empty.style.display = 'none';
+
+        // No tank volume → can't compute
+        if (!currentTank.volume_gallons) {
+          volumeWarn.style.display = 'block';
+          body.style.display = 'none';
+          badge.style.display = 'none';
+          return;
+        }
+        volumeWarn.style.display = 'none';
+
+        const result = computeBioload(currentTank, livestock);
+        const meta = statusMeta(result.status);
+
+        // Status badge
+        badge.textContent = `${meta.emoji} ${meta.label}`;
+        badge.className = `bioload-status bioload-tone-${meta.tone}`;
+        badge.style.display = '';
+
+        // Meter
+        const pct = Math.min(result.percent, 150);
+        const fill = document.getElementById('bioloadMeterFill');
+        fill.style.width = `${Math.min(pct, 100)}%`;
+        fill.className = `bioload-meter-fill bioload-tone-${meta.tone}`;
+
+        // Summary stats
+        document.getElementById('bioloadPercent').textContent = `${Math.round(result.percent)}%`;
+        document.getElementById('bioloadNet').textContent = result.netLoad.toFixed(1);
+        document.getElementById('bioloadCapacity').textContent = result.capacity.toFixed(1);
+
+        const offsetStat = document.getElementById('bioloadOffsetStat');
+        if (result.offsetApplied > 0) {
+          offsetStat.style.display = '';
+          const reduction = result.rawLoad > 0 ? Math.round((result.offsetApplied / result.rawLoad) * 100) : 0;
+          document.getElementById('bioloadOffsetValue').textContent =
+            `−${result.offsetApplied.toFixed(1)} (${reduction}%)`;
+        } else {
+          offsetStat.style.display = 'none';
+        }
+
+        // Warnings
+        const warnEl = document.getElementById('bioloadWarnings');
+        if (result.warnings.length) {
+          warnEl.innerHTML = result.warnings
+            .map((w) => `<div class="bioload-warning">${escapeHtml(w)}</div>`).join('');
+        } else {
+          warnEl.innerHTML = '';
+        }
+
+        // Contributor breakdown
+        const list = document.getElementById('bioloadContributorList');
+        if (!result.contributors.length) {
+          list.innerHTML = '<li class="text-muted">No bioload contributors.</li>';
+        } else {
+          list.innerHTML = result.contributors.map((c) => {
+            const sourceLabel = c.source === 'curated' ? '' :
+              c.source === 'estimated' ? '<span class="source-tag source-est">est.</span>' :
+              '<span class="source-tag source-unk">unknown</span>';
+            return `
+              <li class="bioload-contributor">
+                <div class="bioload-contributor-name">
+                  ${escapeHtml(c.name)} ${sourceLabel}
+                  <span class="bioload-contributor-qty">× ${c.quantity}</span>
+                </div>
+                <div class="bioload-contributor-units">
+                  ${c.units.toFixed(1)} units
+                  <span class="text-muted">(${c.perIndividual.toFixed(1)} ea)</span>
+                </div>
+              </li>
+            `;
+          }).join('');
+        }
+
+        body.style.display = 'block';
       }
 
       function renderLivestockItem(it, catMeta) {
