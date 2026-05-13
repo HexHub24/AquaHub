@@ -149,9 +149,36 @@
               <div id="livestockGroups"></div>
             </div>
 
-            <div class="card">
-              <h2>Water Tests</h2>
-              <p class="text-muted">Coming soon — log temperature, pH, ammonia, nitrite, nitrate, gH and kH over time.</p>
+            <div class="card watertest-card">
+              <div class="card-head-row">
+                <h2>Water Tests</h2>
+                <button id="logTestBtn" class="btn-primary btn-inline" type="button">+ Log test</button>
+              </div>
+
+              <div id="watertestEmpty" class="empty-state" style="display: none; padding: 28px 10px;">
+                <div class="empty-icon">🧪</div>
+                <p class="text-muted">No water tests logged yet. Tap "Log test" to start tracking parameters.</p>
+              </div>
+
+              <div id="watertestBody" style="display: none">
+                <div id="watertestLatestRow" class="watertest-latest"></div>
+
+                <div class="watertest-chart-wrap">
+                  <div class="watertest-chart-controls">
+                    <span class="watertest-chart-label">Last 30 days</span>
+                    <select id="watertestChartParam" class="watertest-chart-select"></select>
+                  </div>
+                  <canvas id="watertestChart" height="180"></canvas>
+                  <p class="watertest-chart-empty" id="watertestChartEmpty" style="display: none">
+                    Not enough data yet for this parameter — log a second reading to see a trend.
+                  </p>
+                </div>
+
+                <details class="bioload-breakdown">
+                  <summary>Test history</summary>
+                  <ul id="watertestHistory" class="watertest-history"></ul>
+                </details>
+              </div>
             </div>
 
             <div class="card bioload-card">
@@ -503,10 +530,127 @@
       </div>
     </div>
 
+    <!-- Log Water Test Modal -->
+    <div id="logTestModal" class="modal-backdrop" style="display: none">
+      <div class="modal modal-large" role="dialog" aria-modal="true" aria-labelledby="logTestTitle">
+        <div class="modal-header">
+          <h3 id="logTestTitle">Log water test</h3>
+          <button class="modal-close" id="logTestCloseBtn" type="button" aria-label="Close">×</button>
+        </div>
+        <div class="modal-body">
+          <div id="logTestAlert" class="alert" role="alert"></div>
+
+          <div class="watertest-tabs">
+            <button type="button" class="watertest-tab active" data-tab="full">Full panel</button>
+            <button type="button" class="watertest-tab" data-tab="quick">Quick log</button>
+          </div>
+
+          <!-- Full panel tab: every parameter, fill what you tested -->
+          <div id="logTestFull" class="watertest-tab-pane">
+            <p class="form-hint" style="margin-bottom: 12px">Fill in whichever you tested. Leave blank what you didn't.</p>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="logTemperature">Temp (°F)</label>
+                <input id="logTemperature" type="number" class="form-input" step="0.1" placeholder="e.g. 76" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="logPh">pH</label>
+                <input id="logPh" type="number" class="form-input" step="0.1" min="0" max="14" placeholder="e.g. 7.4" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="logAmmonia">Ammonia (ppm)</label>
+                <input id="logAmmonia" type="number" class="form-input" step="0.05" min="0" placeholder="e.g. 0" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="logNitrite">Nitrite (ppm)</label>
+                <input id="logNitrite" type="number" class="form-input" step="0.05" min="0" placeholder="e.g. 0" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="logNitrate">Nitrate (ppm)</label>
+                <input id="logNitrate" type="number" class="form-input" step="0.5" min="0" placeholder="e.g. 10" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="logGh">gH</label>
+                <input id="logGh" type="number" class="form-input" step="0.5" min="0" placeholder="e.g. 8" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="logKh">kH</label>
+                <input id="logKh" type="number" class="form-input" step="0.5" min="0" placeholder="e.g. 4" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="logTestDate">When tested</label>
+                <input id="logTestDate" type="datetime-local" class="form-input" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="logNotes">Notes</label>
+              <textarea id="logNotes" class="form-input" rows="2" maxlength="500" placeholder="Optional"></textarea>
+            </div>
+          </div>
+
+          <!-- Quick log tab: pick one parameter -->
+          <div id="logTestQuick" class="watertest-tab-pane" style="display: none">
+            <p class="form-hint" style="margin-bottom: 12px">Log a single parameter quickly.</p>
+            <div class="form-group">
+              <label class="form-label" for="quickParam">Parameter</label>
+              <select id="quickParam" class="form-input"></select>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="quickValue">Value</label>
+                <input id="quickValue" type="number" class="form-input" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="quickDate">When tested</label>
+                <input id="quickDate" type="datetime-local" class="form-input" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="quickNotes">Notes</label>
+              <textarea id="quickNotes" class="form-input" rows="2" maxlength="500" placeholder="Optional"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <div class="modal-footer-right">
+            <button class="btn-secondary" type="button" id="logTestCancelBtn">Cancel</button>
+            <button class="btn-primary btn-inline" type="button" id="logTestSaveBtn">Save reading</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Test Detail Modal -->
+    <div id="testDetailModal" class="modal-backdrop" style="display: none">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="testDetailTitle">
+        <div class="modal-header">
+          <h3 id="testDetailTitle">Water test</h3>
+          <button class="modal-close" id="testDetailCloseBtn" type="button" aria-label="Close">×</button>
+        </div>
+        <div class="modal-body" id="testDetailBody">—</div>
+        <div class="modal-footer">
+          <button id="testDetailDeleteBtn" class="btn-danger" type="button">Delete</button>
+          <div class="modal-footer-right">
+            <button class="btn-secondary" type="button" id="testDetailCloseBtn2">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart.js (loaded once, before module script) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
     <script type="module">
       import { supabase, requireAuth } from '/lib/supabase.js';
       import { computeBioload, statusMeta } from '/lib/bioload.js';
       import { computeSetup, dosingTable, floorLoadAdvice, SUBSTRATE, HARDSCAPE_CATALOG, EQUIPMENT_CATALOG, sumItems, findCatalogItem } from '/lib/setup.js';
+      import { evaluateReading, PARAMETERS, paramMeta, formatReading } from '/lib/watertest.js';
 
       const user = await requireAuth();
       if (!user) throw new Error('not authenticated');
@@ -573,6 +717,9 @@
       let currentTank = null;
       let livestock = [];
       let signedUrls = {}; // photo_url -> resolved URL
+      let waterTests = [];
+      let chartInstance = null;
+      let currentChartParam = 'temperature';
       let selectedSpecies = null;
       let currentResults = [];
       let highlightIndex = -1;
@@ -709,6 +856,7 @@
           content.style.display = 'block';
           renderSetup();
           await loadLivestock();
+          await loadWaterTests();
         }
       }
 
@@ -805,6 +953,7 @@
         });
 
         renderBioload();
+        if (waterTests.length > 0) renderWaterTests();
       }
 
       // ---- Bioload card ----
@@ -945,6 +1094,389 @@
           </li>
         `;
       }
+
+      // ---- Water tests ----
+      async function loadWaterTests() {
+        if (!currentTank) return;
+        const { data, error } = await supabase
+          .from('water_tests')
+          .select('*')
+          .eq('tank_id', currentTank.id)
+          .order('test_date', { ascending: false })
+          .limit(200);
+        if (error) {
+          waterTests = [];
+        } else {
+          waterTests = data || [];
+        }
+        renderWaterTests();
+      }
+
+      function renderWaterTests() {
+        const empty = document.getElementById('watertestEmpty');
+        const body = document.getElementById('watertestBody');
+        if (waterTests.length === 0) {
+          empty.style.display = 'block';
+          body.style.display = 'none';
+          if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+          return;
+        }
+        empty.style.display = 'none';
+        body.style.display = 'block';
+
+        renderLatestRow();
+        renderChartControls();
+        renderChart();
+        renderHistory();
+      }
+
+      function renderLatestRow() {
+        const latest = waterTests[0]; // already ordered desc
+        const rowEl = document.getElementById('watertestLatestRow');
+        const tests = waterTests;
+
+        // For each parameter, find the most recent non-null value
+        const pills = PARAMETERS.map((p) => {
+          let val = null, when = null;
+          for (const t of tests) {
+            if (t[p.key] !== null && t[p.key] !== undefined) {
+              val = t[p.key];
+              when = t.test_date;
+              break;
+            }
+          }
+          if (val === null) {
+            return `<div class="param-pill param-pill-empty">
+              <div class="param-pill-label">${p.label}</div>
+              <div class="param-pill-value">—</div>
+            </div>`;
+          }
+          const ev = evaluateReading(p.key, val, currentTank, livestock);
+          const ageDays = when ? Math.floor((Date.now() - new Date(when).getTime()) / (1000 * 60 * 60 * 24)) : null;
+          const ageLabel = ageDays === 0 ? 'today' : ageDays === 1 ? '1d ago' : ageDays !== null ? `${ageDays}d ago` : '';
+          return `<div class="param-pill param-pill-${ev.tone}" title="${escapeHtml(ev.reason)}">
+            <div class="param-pill-label">${p.label}</div>
+            <div class="param-pill-value">${val}${p.unit ? ` <span class="param-pill-unit">${p.unit}</span>` : ''}</div>
+            <div class="param-pill-age">${ageLabel}</div>
+          </div>`;
+        }).join('');
+        rowEl.innerHTML = pills;
+      }
+
+      function renderChartControls() {
+        const select = document.getElementById('watertestChartParam');
+        // Only show parameters with at least one logged value
+        const usable = PARAMETERS.filter((p) => waterTests.some((t) => t[p.key] !== null && t[p.key] !== undefined));
+        if (usable.length === 0) {
+          select.innerHTML = '<option value="">No data</option>';
+          return;
+        }
+        // Preserve current selection if still valid, otherwise pick first
+        if (!usable.some((p) => p.key === currentChartParam)) {
+          currentChartParam = usable[0].key;
+        }
+        select.innerHTML = usable.map((p) =>
+          `<option value="${p.key}" ${p.key === currentChartParam ? 'selected' : ''}>${p.label}${p.unit ? ` (${p.unit})` : ''}</option>`
+        ).join('');
+      }
+
+      function renderChart() {
+        const canvas = document.getElementById('watertestChart');
+        const emptyMsg = document.getElementById('watertestChartEmpty');
+        const param = currentChartParam;
+        const p = paramMeta(param);
+
+        // Build data: last 30 days, ascending chronological
+        const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+        const points = waterTests
+          .filter((t) => t[param] !== null && t[param] !== undefined && new Date(t.test_date).getTime() >= cutoff)
+          .map((t) => ({ x: new Date(t.test_date), y: Number(t[param]) }))
+          .sort((a, b) => a.x - b.x);
+
+        if (points.length < 2) {
+          canvas.style.display = 'none';
+          emptyMsg.style.display = 'block';
+          if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+          return;
+        }
+        canvas.style.display = 'block';
+        emptyMsg.style.display = 'none';
+
+        // Ideal range for this parameter (from species or generic)
+        const ideal = (() => {
+          if (!points.length) return null;
+          const ev = evaluateReading(param, points[points.length - 1].y, currentTank, livestock);
+          return ev.ideal;
+        })();
+
+        if (chartInstance) chartInstance.destroy();
+
+        const datasets = [
+          {
+            label: `${p.label}${p.unit ? ' (' + p.unit + ')' : ''}`,
+            data: points,
+            borderColor: '#0ea5e9',
+            backgroundColor: 'rgba(14, 165, 233, 0.12)',
+            fill: true,
+            tension: 0.2,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+          },
+        ];
+
+        // Add ideal-range band as a transparent overlay (using two horizontal lines)
+        const annotations = {};
+        if (ideal && ideal.min !== null && ideal.max !== null && ideal.min !== undefined && ideal.max !== undefined) {
+          // Show ideal min/max as dashed reference lines via additional datasets
+          const xs = points.map(p => p.x);
+          datasets.push({
+            label: `Ideal min`,
+            data: xs.map((x) => ({ x, y: ideal.min })),
+            borderColor: 'rgba(34, 197, 94, 0.5)',
+            borderDash: [4, 4],
+            borderWidth: 1,
+            pointRadius: 0,
+            fill: false,
+            tension: 0,
+          });
+          datasets.push({
+            label: `Ideal max`,
+            data: xs.map((x) => ({ x, y: ideal.max })),
+            borderColor: 'rgba(34, 197, 94, 0.5)',
+            borderDash: [4, 4],
+            borderWidth: 1,
+            pointRadius: 0,
+            fill: false,
+            tension: 0,
+          });
+        }
+
+        chartInstance = new window.Chart(canvas.getContext('2d'), {
+          type: 'line',
+          data: { datasets },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: (ctx) => `${p.label}: ${ctx.parsed.y}${p.unit ? ' ' + p.unit : ''}`,
+                  title: (ctx) => new Date(ctx[0].parsed.x).toLocaleString(undefined, {
+                    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+                  }),
+                },
+              },
+            },
+            scales: {
+              x: {
+                type: 'time',
+                time: { unit: 'day', displayFormats: { day: 'MMM d' } },
+                grid: { display: false },
+              },
+              y: {
+                beginAtZero: param === 'ammonia' || param === 'nitrite' || param === 'nitrate',
+                ticks: { precision: 1 },
+              },
+            },
+          },
+        });
+      }
+
+      function renderHistory() {
+        const ul = document.getElementById('watertestHistory');
+        if (waterTests.length === 0) { ul.innerHTML = ''; return; }
+        ul.innerHTML = waterTests.map((t) => {
+          const d = new Date(t.test_date);
+          const dateLabel = d.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+          const recorded = PARAMETERS
+            .filter((p) => t[p.key] !== null && t[p.key] !== undefined)
+            .map((p) => `${p.label} ${t[p.key]}${p.unit ? p.unit : ''}`)
+            .join(' · ');
+          return `
+            <li class="watertest-history-item" data-id="${t.id}">
+              <div class="watertest-history-date">${dateLabel}</div>
+              <div class="watertest-history-readings">${escapeHtml(recorded) || '<span class="text-muted">No readings</span>'}</div>
+            </li>
+          `;
+        }).join('');
+        ul.querySelectorAll('.watertest-history-item').forEach((li) => {
+          li.addEventListener('click', () => openTestDetail(li.dataset.id));
+        });
+      }
+
+      // Chart param selector
+      document.getElementById('watertestChartParam').addEventListener('change', (e) => {
+        currentChartParam = e.target.value;
+        renderChart();
+      });
+
+      // ---- Log Test modal ----
+      const logTestModal = document.getElementById('logTestModal');
+      const logTestAlert = document.getElementById('logTestAlert');
+
+      function setLogTestTab(tab) {
+        document.querySelectorAll('.watertest-tab').forEach((b) => {
+          b.classList.toggle('active', b.dataset.tab === tab);
+        });
+        document.getElementById('logTestFull').style.display = tab === 'full' ? 'block' : 'none';
+        document.getElementById('logTestQuick').style.display = tab === 'quick' ? 'block' : 'none';
+      }
+
+      function nowDateTimeLocal() {
+        const d = new Date();
+        // strip timezone offset to local for datetime-local input
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      }
+
+      function openLogTestModal() {
+        clearAlert(logTestAlert);
+        ['logTemperature','logPh','logAmmonia','logNitrite','logNitrate','logGh','logKh','logNotes'].forEach((id) => {
+          document.getElementById(id).value = '';
+        });
+        document.getElementById('logTestDate').value = nowDateTimeLocal();
+        document.getElementById('quickDate').value = nowDateTimeLocal();
+        document.getElementById('quickValue').value = '';
+        document.getElementById('quickNotes').value = '';
+
+        // Populate quick-log parameter dropdown
+        const qp = document.getElementById('quickParam');
+        qp.innerHTML = PARAMETERS.map((p) =>
+          `<option value="${p.key}">${p.label}${p.unit ? ' (' + p.unit + ')' : ''}</option>`
+        ).join('');
+
+        setLogTestTab('full');
+        logTestModal.style.display = 'flex';
+        setTimeout(() => document.getElementById('logTemperature').focus(), 50);
+      }
+      function closeLogTestModal() { logTestModal.style.display = 'none'; }
+
+      async function saveLogTest() {
+        clearAlert(logTestAlert);
+        const activeTab = document.querySelector('.watertest-tab.active').dataset.tab;
+
+        const numOrNull = (id) => {
+          const v = document.getElementById(id).value.trim();
+          if (v === '') return null;
+          const n = Number(v);
+          return Number.isNaN(n) ? null : n;
+        };
+        const strOrNull = (id) => {
+          const v = document.getElementById(id).value.trim();
+          return v === '' ? null : v;
+        };
+
+        let payload;
+        if (activeTab === 'full') {
+          payload = {
+            user_id: user.id,
+            tank_id: currentTank.id,
+            test_date: document.getElementById('logTestDate').value
+              ? new Date(document.getElementById('logTestDate').value).toISOString()
+              : new Date().toISOString(),
+            temperature: numOrNull('logTemperature'),
+            ph:          numOrNull('logPh'),
+            ammonia:     numOrNull('logAmmonia'),
+            nitrite:     numOrNull('logNitrite'),
+            nitrate:     numOrNull('logNitrate'),
+            gh:          numOrNull('logGh'),
+            kh:          numOrNull('logKh'),
+            notes:       strOrNull('logNotes'),
+          };
+          const hasAny = ['temperature','ph','ammonia','nitrite','nitrate','gh','kh']
+            .some((k) => payload[k] !== null);
+          if (!hasAny) {
+            showAlert(logTestAlert, 'Fill in at least one parameter.');
+            return;
+          }
+        } else {
+          const param = document.getElementById('quickParam').value;
+          const val = numOrNull('quickValue');
+          if (val === null) { showAlert(logTestAlert, 'Enter a value.'); return; }
+          payload = {
+            user_id: user.id,
+            tank_id: currentTank.id,
+            test_date: document.getElementById('quickDate').value
+              ? new Date(document.getElementById('quickDate').value).toISOString()
+              : new Date().toISOString(),
+            [param]: val,
+            notes: strOrNull('quickNotes'),
+          };
+        }
+
+        const saveBtn = document.getElementById('logTestSaveBtn');
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving…';
+
+        const { error } = await supabase.from('water_tests').insert(payload);
+
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save reading';
+
+        if (error) {
+          showAlert(logTestAlert, `Save failed: ${error.message}`);
+          return;
+        }
+        closeLogTestModal();
+        await loadWaterTests();
+      }
+
+      document.querySelectorAll('.watertest-tab').forEach((btn) => {
+        btn.addEventListener('click', () => setLogTestTab(btn.dataset.tab));
+      });
+      document.getElementById('logTestBtn').addEventListener('click', openLogTestModal);
+      document.getElementById('logTestCloseBtn').addEventListener('click', closeLogTestModal);
+      document.getElementById('logTestCancelBtn').addEventListener('click', closeLogTestModal);
+      document.getElementById('logTestSaveBtn').addEventListener('click', saveLogTest);
+      logTestModal.addEventListener('click', (e) => { if (e.target === logTestModal) closeLogTestModal(); });
+
+      // ---- Test detail modal ----
+      const testDetailModal = document.getElementById('testDetailModal');
+
+      function openTestDetail(id) {
+        const t = waterTests.find((x) => x.id === id);
+        if (!t) return;
+        const d = new Date(t.test_date);
+        document.getElementById('testDetailTitle').textContent =
+          d.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+
+        const rows = PARAMETERS
+          .filter((p) => t[p.key] !== null && t[p.key] !== undefined)
+          .map((p) => {
+            const ev = evaluateReading(p.key, t[p.key], currentTank, livestock);
+            return `
+              <div class="watertest-detail-row watertest-detail-${ev.tone}">
+                <div class="watertest-detail-label">${p.label}</div>
+                <div class="watertest-detail-value">${t[p.key]}${p.unit ? ` ${p.unit}` : ''}</div>
+                <div class="watertest-detail-reason">${escapeHtml(ev.reason)}</div>
+              </div>
+            `;
+          }).join('');
+
+        document.getElementById('testDetailBody').innerHTML = `
+          ${rows || '<p class="text-muted">No readings recorded.</p>'}
+          ${t.notes ? `<h4 class="detail-subhead" style="margin-top: 16px">Notes</h4><p class="text-body">${escapeHtml(t.notes)}</p>` : ''}
+        `;
+        document.getElementById('testDetailDeleteBtn').dataset.id = t.id;
+        testDetailModal.style.display = 'flex';
+      }
+      function closeTestDetail() { testDetailModal.style.display = 'none'; }
+
+      async function deleteTest() {
+        const id = document.getElementById('testDetailDeleteBtn').dataset.id;
+        if (!id) return;
+        if (!confirm('Delete this water test reading? This cannot be undone.')) return;
+        const { error } = await supabase.from('water_tests').delete().eq('id', id);
+        if (error) { alert(`Delete failed: ${error.message}`); return; }
+        closeTestDetail();
+        await loadWaterTests();
+      }
+
+      document.getElementById('testDetailCloseBtn').addEventListener('click', closeTestDetail);
+      document.getElementById('testDetailCloseBtn2').addEventListener('click', closeTestDetail);
+      document.getElementById('testDetailDeleteBtn').addEventListener('click', deleteTest);
+      testDetailModal.addEventListener('click', (e) => { if (e.target === testDetailModal) closeTestDetail(); });
 
       // ---- Setup card ----
       function renderSetup() {
@@ -1685,6 +2217,8 @@
       document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
           if (pickerModal.style.display !== 'none') closePicker();
+          else if (testDetailModal.style.display !== 'none') closeTestDetail();
+          else if (logTestModal.style.display !== 'none') closeLogTestModal();
           else if (addModal.style.display !== 'none') closeAddModal();
           else if (editModal.style.display !== 'none') closeEditModal();
           else if (setupModal.style.display !== 'none') closeSetupModal();
