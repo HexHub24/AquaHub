@@ -1351,3 +1351,230 @@ select.form-input option {
   font-weight: 400;
   color: var(--text);
 }
+/* ============================================================
+   AquaHub — Phase 3e (water tests) additions
+   APPEND to bottom of styles.css
+   ============================================================ */
+
+/* ---------- Latest-reading parameter pills ---------- */
+.watertest-latest {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(82px, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.param-pill {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--surface-raised);
+  border: 1.5px solid var(--border);
+  text-align: center;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.param-pill-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-subtle);
+  margin-bottom: 3px;
+}
+
+.param-pill-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.1;
+}
+
+.param-pill-unit {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-left: 1px;
+}
+
+.param-pill-age {
+  font-size: 0.65rem;
+  color: var(--text-subtle);
+  margin-top: 3px;
+}
+
+.param-pill-empty .param-pill-value { color: var(--text-subtle); }
+
+.param-pill-success {
+  background: var(--success-bg);
+  border-color: #bbf7d0;
+}
+.param-pill-success .param-pill-value { color: #047857; }
+
+.param-pill-warning {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+.param-pill-warning .param-pill-value { color: #b45309; }
+
+.param-pill-danger {
+  background: var(--danger-bg);
+  border-color: #fecaca;
+}
+.param-pill-danger .param-pill-value { color: var(--danger); }
+
+/* ---------- Chart container ---------- */
+.watertest-chart-wrap {
+  margin-bottom: 14px;
+}
+
+.watertest-chart-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.watertest-chart-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-subtle);
+}
+
+.watertest-chart-select {
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+#watertestChart {
+  width: 100% !important;
+  max-height: 220px;
+}
+
+.watertest-chart-empty {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 30px 12px;
+}
+
+/* ---------- History list ---------- */
+.watertest-history {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.watertest-history-item {
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.watertest-history-item:last-child { border-bottom: none; }
+
+.watertest-history-item:hover {
+  background: var(--surface-raised);
+  margin: 0 -4px;
+  padding: 10px 8px;
+  border-radius: 8px;
+  border-bottom-color: transparent;
+}
+
+.watertest-history-date {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+
+.watertest-history-readings {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* ---------- Tabs (Log test modal) ---------- */
+.watertest-tabs {
+  display: flex;
+  background: var(--surface-raised);
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 14px;
+}
+
+.watertest-tab {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.watertest-tab.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+/* ---------- Test detail rows (in detail modal) ---------- */
+.watertest-detail-row {
+  display: grid;
+  grid-template-columns: 60px 90px 1fr;
+  gap: 10px;
+  align-items: baseline;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 6px;
+  border-left: 3px solid var(--border);
+  background: var(--surface-raised);
+}
+
+.watertest-detail-success {
+  background: var(--success-bg);
+  border-left-color: var(--success);
+}
+.watertest-detail-warning {
+  background: #fffbeb;
+  border-left-color: #f59e0b;
+}
+.watertest-detail-danger {
+  background: var(--danger-bg);
+  border-left-color: var(--danger);
+}
+
+.watertest-detail-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-subtle);
+}
+
+.watertest-detail-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.watertest-detail-reason {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
