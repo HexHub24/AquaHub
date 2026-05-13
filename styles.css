@@ -1096,3 +1096,139 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .planner-remove:hover {
   background: #fecaca;
 }
+/* ============================================================
+   AquaHub — Phase 3d (setup calculator) additions
+   APPEND to bottom of styles.css
+   ============================================================ */
+
+/* ---------- Setup card headline stats ---------- */
+.setup-headline {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 480px) {
+  .setup-headline { grid-template-columns: 1fr; }
+}
+
+.setup-stat-big {
+  padding: 14px 16px;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.06), rgba(20, 184, 166, 0.06));
+  border: 1px solid rgba(14, 165, 233, 0.2);
+  border-radius: 12px;
+}
+
+.setup-stat-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--primary-dark);
+  margin-bottom: 6px;
+}
+
+.setup-stat-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  line-height: 1.1;
+}
+
+.setup-stat-unit {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0;
+}
+
+.setup-stat-aux {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* ---------- Floor load advice banner ---------- */
+.setup-advice {
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  margin-bottom: 12px;
+  border-left: 3px solid;
+}
+
+.setup-advice-low {
+  background: var(--success-bg);
+  color: var(--success);
+  border-color: var(--success);
+}
+.setup-advice-comfortable {
+  background: var(--success-bg);
+  color: #047857;
+  border-color: var(--success);
+}
+.setup-advice-caution {
+  background: #fffbeb;
+  color: #92400e;
+  border-color: #f59e0b;
+}
+.setup-advice-high {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+/* ---------- Breakdown ---------- */
+.setup-breakdown {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+  margin-top: 4px;
+}
+
+@media (max-width: 480px) {
+  .setup-breakdown { grid-template-columns: 1fr; }
+}
+
+.setup-breakdown div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.setup-breakdown dt {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.setup-breakdown dd {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.setup-breakdown dd span {
+  font-weight: 700;
+}
+
+/* ---------- 3-column dimension input row (length/width/height) ---------- */
+.setup-dim-row {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+@media (max-width: 480px) {
+  .setup-dim-row { grid-template-columns: 1fr 1fr; }
+}
+
+/* ---------- h4 subheadings inside modals (used for section grouping) ---------- */
+.modal-body h4.detail-subhead {
+  margin-bottom: 8px;
+}
