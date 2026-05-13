@@ -423,15 +423,25 @@
             </div>
           </div>
 
-          <h4 class="detail-subhead" style="margin-top: 18px">Extras (estimates, optional)</h4>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label" for="setupHardscape">Hardscape (lbs)</label>
-              <input id="setupHardscape" type="number" class="form-input" min="0" step="0.5" placeholder="rocks + wood" />
+          <h4 class="detail-subhead" style="margin-top: 18px">Hardscape</h4>
+          <p class="form-hint" style="margin-bottom: 8px">Rocks, wood, and decor sitting in the tank. Pick from the catalog or add a custom entry.</p>
+          <div class="picker-section" id="hardscapePicker">
+            <ul class="picker-list" id="hardscapeList"></ul>
+            <div class="picker-empty" id="hardscapeEmpty">No hardscape items yet.</div>
+            <div class="picker-foot">
+              <button type="button" class="btn-secondary btn-sm" data-picker="hardscape">+ Add hardscape</button>
+              <div class="picker-total">Total: <strong id="hardscapeTotal">0.0</strong> lbs</div>
             </div>
-            <div class="form-group">
-              <label class="form-label" for="setupEquipment">Equipment (lbs)</label>
-              <input id="setupEquipment" type="number" class="form-input" min="0" step="0.5" placeholder="filter + heater" />
+          </div>
+
+          <h4 class="detail-subhead" style="margin-top: 18px">Equipment</h4>
+          <p class="form-hint" style="margin-bottom: 8px">Filter, heater, light, and other gear on or attached to the tank. Weights are generic averages — close enough for floor-load math.</p>
+          <div class="picker-section" id="equipmentPicker">
+            <ul class="picker-list" id="equipmentList"></ul>
+            <div class="picker-empty" id="equipmentEmpty">No equipment items yet.</div>
+            <div class="picker-foot">
+              <button type="button" class="btn-secondary btn-sm" data-picker="equipment">+ Add equipment</button>
+              <div class="picker-total">Total: <strong id="equipmentTotal">0.0</strong> lbs</div>
             </div>
           </div>
         </div>
@@ -444,10 +454,59 @@
       </div>
     </div>
 
+    <!-- Add Item picker modal (for both hardscape and equipment) -->
+    <div id="pickerModal" class="modal-backdrop" style="display: none">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pickerModalTitle">
+        <div class="modal-header">
+          <h3 id="pickerModalTitle">Add item</h3>
+          <button class="modal-close" id="pickerModalCloseBtn" type="button" aria-label="Close">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label" for="pickerSelect">Pick an item</label>
+            <select id="pickerSelect" class="form-input"></select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="pickerQty">Quantity</label>
+              <input id="pickerQty" type="number" class="form-input" min="1" max="999" value="1" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Weight each</label>
+              <div class="readonly-value" id="pickerWeightPreview">—</div>
+            </div>
+          </div>
+
+          <details id="pickerCustomDetails">
+            <summary class="form-hint" style="cursor: pointer; padding: 6px 0">
+              Don't see it? <strong>Add a custom item</strong>
+            </summary>
+            <div class="form-row" style="margin-top: 10px">
+              <div class="form-group">
+                <label class="form-label" for="pickerCustomLabel">Custom label</label>
+                <input id="pickerCustomLabel" type="text" class="form-input" maxlength="60" placeholder="e.g. Anubias driftwood" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="pickerCustomLbs">Weight each (lbs)</label>
+                <input id="pickerCustomLbs" type="number" class="form-input" min="0" step="0.1" placeholder="e.g. 1.5" />
+              </div>
+            </div>
+          </details>
+        </div>
+        <div class="modal-footer">
+          <div class="modal-footer-right">
+            <button class="btn-secondary" type="button" id="pickerCancelBtn">Cancel</button>
+            <button class="btn-primary btn-inline" type="button" id="pickerAddBtn">Add</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script type="module">
       import { supabase, requireAuth } from '/lib/supabase.js';
       import { computeBioload, statusMeta } from '/lib/bioload.js';
-      import { computeSetup, dosingTable, floorLoadAdvice, SUBSTRATE } from '/lib/setup.js';
+      import { computeSetup, dosingTable, floorLoadAdvice, SUBSTRATE, HARDSCAPE_CATALOG, EQUIPMENT_CATALOG, sumItems, findCatalogItem } from '/lib/setup.js';
 
       const user = await requireAuth();
       if (!user) throw new Error('not authenticated');
@@ -964,6 +1023,10 @@
       const setupModal = document.getElementById('setupModal');
       const setupModalAlert = document.getElementById('setupModalAlert');
 
+      // Working copies of picker state (committed on save)
+      let hardscapeDraft = [];
+      let equipmentDraft = [];
+
       function openSetupModal() {
         if (!currentTank) return;
         clearAlert(setupModalAlert);
@@ -973,11 +1036,158 @@
         document.getElementById('setupMaterial').value       = currentTank.tank_material ?? 'glass';
         document.getElementById('setupSubstrateType').value  = currentTank.substrate_type ?? '';
         document.getElementById('setupSubstrateDepth').value = currentTank.substrate_depth_inches ?? '';
-        document.getElementById('setupHardscape').value      = currentTank.hardscape_weight_lbs ?? '';
-        document.getElementById('setupEquipment').value      = currentTank.equipment_weight_lbs ?? '';
+
+        // Hydrate picker state. If the user previously saved only a total weight,
+        // we still show an "Other (legacy)" item so they can see and adjust it.
+        hardscapeDraft = Array.isArray(currentTank.hardscape_items)
+          ? JSON.parse(JSON.stringify(currentTank.hardscape_items))
+          : [];
+        equipmentDraft = Array.isArray(currentTank.equipment_items)
+          ? JSON.parse(JSON.stringify(currentTank.equipment_items))
+          : [];
+
+        // Legacy migration: if no item list but a saved total, surface it as a single custom row
+        if (hardscapeDraft.length === 0 && Number(currentTank.hardscape_weight_lbs) > 0) {
+          hardscapeDraft.push({
+            custom: true,
+            label: 'Previously-entered hardscape',
+            weight_per_unit: Number(currentTank.hardscape_weight_lbs),
+            quantity: 1,
+          });
+        }
+        if (equipmentDraft.length === 0 && Number(currentTank.equipment_weight_lbs) > 0) {
+          equipmentDraft.push({
+            custom: true,
+            label: 'Previously-entered equipment',
+            weight_per_unit: Number(currentTank.equipment_weight_lbs),
+            quantity: 1,
+          });
+        }
+
+        renderPickerList('hardscape');
+        renderPickerList('equipment');
         setupModal.style.display = 'flex';
       }
       function closeSetupModal() { setupModal.style.display = 'none'; }
+
+      function getDraft(kind) {
+        return kind === 'hardscape' ? hardscapeDraft : equipmentDraft;
+      }
+
+      function renderPickerList(kind) {
+        const draft = getDraft(kind);
+        const listEl = document.getElementById(`${kind}List`);
+        const emptyEl = document.getElementById(`${kind}Empty`);
+        const totalEl = document.getElementById(`${kind}Total`);
+
+        if (draft.length === 0) {
+          emptyEl.style.display = 'block';
+          listEl.innerHTML = '';
+        } else {
+          emptyEl.style.display = 'none';
+          listEl.innerHTML = draft.map((it, idx) => {
+            const subtotal = (Number(it.weight_per_unit) || 0) * (Number(it.quantity) || 0);
+            return `
+              <li class="picker-item">
+                <div class="picker-item-main">
+                  <div class="picker-item-label">
+                    ${escapeHtml(it.label)}
+                    ${it.custom ? '<span class="custom-badge">custom</span>' : ''}
+                  </div>
+                  <div class="picker-item-meta">
+                    ${Number(it.weight_per_unit).toFixed(1)} lbs each
+                    ${it.quantity > 1 ? ` × ${it.quantity} = <strong>${subtotal.toFixed(1)} lbs</strong>` : ''}
+                  </div>
+                </div>
+                <button type="button" class="picker-item-remove" data-kind="${kind}" data-index="${idx}" aria-label="Remove">×</button>
+              </li>
+            `;
+          }).join('');
+        }
+        totalEl.textContent = sumItems(draft).toFixed(1);
+
+        listEl.querySelectorAll('.picker-item-remove').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const k = btn.dataset.kind;
+            const i = parseInt(btn.dataset.index, 10);
+            getDraft(k).splice(i, 1);
+            renderPickerList(k);
+          });
+        });
+      }
+
+      // ---- "Add item" picker modal ----
+      const pickerModal = document.getElementById('pickerModal');
+      const pickerSelect = document.getElementById('pickerSelect');
+      const pickerQty = document.getElementById('pickerQty');
+      const pickerWeightPreview = document.getElementById('pickerWeightPreview');
+      const pickerCustomLabel = document.getElementById('pickerCustomLabel');
+      const pickerCustomLbs = document.getElementById('pickerCustomLbs');
+      const pickerCustomDetails = document.getElementById('pickerCustomDetails');
+      let pickerKind = null;
+
+      function openPicker(kind) {
+        pickerKind = kind;
+        document.getElementById('pickerModalTitle').textContent =
+          kind === 'hardscape' ? 'Add hardscape' : 'Add equipment';
+
+        const catalog = kind === 'hardscape' ? HARDSCAPE_CATALOG : EQUIPMENT_CATALOG;
+
+        // Build option list grouped by `.group`
+        const groups = {};
+        for (const item of catalog) {
+          if (!groups[item.group]) groups[item.group] = [];
+          groups[item.group].push(item);
+        }
+        let html = '';
+        for (const groupName of Object.keys(groups)) {
+          html += `<optgroup label="${groupName}">`;
+          for (const item of groups[groupName]) {
+            html += `<option value="${item.key}" data-lbs="${item.lbs}">${item.label} — ${item.lbs.toFixed(1)} lbs</option>`;
+          }
+          html += `</optgroup>`;
+        }
+        pickerSelect.innerHTML = html;
+        pickerQty.value = '1';
+        pickerCustomLabel.value = '';
+        pickerCustomLbs.value = '';
+        pickerCustomDetails.open = false;
+        updatePickerPreview();
+        pickerModal.style.display = 'flex';
+        setTimeout(() => pickerSelect.focus(), 50);
+      }
+      function closePicker() { pickerModal.style.display = 'none'; }
+
+      function updatePickerPreview() {
+        const opt = pickerSelect.options[pickerSelect.selectedIndex];
+        if (opt) pickerWeightPreview.textContent = `${Number(opt.dataset.lbs).toFixed(1)} lbs`;
+      }
+
+      pickerSelect.addEventListener('change', updatePickerPreview);
+
+      function addPickedItem() {
+        if (!pickerKind) return;
+        const qty = parseInt(pickerQty.value, 10);
+        if (!qty || qty < 1) return;
+
+        let item;
+        const customLabel = pickerCustomLabel.value.trim();
+        const customLbs = parseFloat(pickerCustomLbs.value);
+        if (customLabel && customLbs >= 0) {
+          item = { custom: true, label: customLabel, weight_per_unit: customLbs, quantity: qty };
+        } else {
+          const opt = pickerSelect.options[pickerSelect.selectedIndex];
+          if (!opt) return;
+          const catalog = pickerKind === 'hardscape' ? HARDSCAPE_CATALOG : EQUIPMENT_CATALOG;
+          const cat = catalog.find((x) => x.key === opt.value);
+          if (!cat) return;
+          item = { catalog_key: cat.key, label: cat.label, weight_per_unit: cat.lbs, quantity: qty };
+        }
+
+        getDraft(pickerKind).push(item);
+        renderPickerList(pickerKind);
+        closePicker();
+      }
 
       async function saveSetup() {
         clearAlert(setupModalAlert);
@@ -997,13 +1207,14 @@
           tank_material:          strOrNull('setupMaterial'),
           substrate_type:         strOrNull('setupSubstrateType'),
           substrate_depth_inches: numOrNull('setupSubstrateDepth'),
-          hardscape_weight_lbs:   numOrNull('setupHardscape'),
-          equipment_weight_lbs:   numOrNull('setupEquipment'),
+          hardscape_items:        hardscapeDraft.length ? hardscapeDraft : null,
+          equipment_items:        equipmentDraft.length ? equipmentDraft : null,
+          hardscape_weight_lbs:   sumItems(hardscapeDraft) || null,
+          equipment_weight_lbs:   sumItems(equipmentDraft) || null,
         };
 
-        // Basic validation
         for (const [k, v] of Object.entries(updates)) {
-          if (v !== null && typeof v === 'number' && (Number.isNaN(v) || v < 0)) {
+          if (typeof v === 'number' && (Number.isNaN(v) || v < 0)) {
             showAlert(setupModalAlert, `Invalid value for ${k.replace(/_/g, ' ')}.`);
             return;
           }
@@ -1036,6 +1247,16 @@
       document.getElementById('setupModalCancelBtn').addEventListener('click', closeSetupModal);
       document.getElementById('setupModalSaveBtn').addEventListener('click', saveSetup);
       setupModal.addEventListener('click', (e) => { if (e.target === setupModal) closeSetupModal(); });
+
+      // Picker modal triggers (delegated to the Add buttons inside the picker sections)
+      document.querySelectorAll('[data-picker]').forEach((btn) => {
+        btn.addEventListener('click', () => openPicker(btn.dataset.picker));
+      });
+
+      document.getElementById('pickerModalCloseBtn').addEventListener('click', closePicker);
+      document.getElementById('pickerCancelBtn').addEventListener('click', closePicker);
+      document.getElementById('pickerAddBtn').addEventListener('click', addPickedItem);
+      pickerModal.addEventListener('click', (e) => { if (e.target === pickerModal) closePicker(); });
 
       // ---- Add modal ----
       function openAddModal() {
@@ -1463,9 +1684,10 @@
 
       document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-          if (addModal.style.display !== 'none') closeAddModal();
-          if (editModal.style.display !== 'none') closeEditModal();
-          if (setupModal.style.display !== 'none') closeSetupModal();
+          if (pickerModal.style.display !== 'none') closePicker();
+          else if (addModal.style.display !== 'none') closeAddModal();
+          else if (editModal.style.display !== 'none') closeEditModal();
+          else if (setupModal.style.display !== 'none') closeSetupModal();
         }
       });
 
