@@ -1232,3 +1232,122 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .modal-body h4.detail-subhead {
   margin-bottom: 8px;
 }
+/* ============================================================
+   AquaHub — Phase 3d.2 (hardscape/equipment picker) additions
+   APPEND to bottom of styles.css
+   ============================================================ */
+
+/* ---------- Picker section (inside setup modal) ---------- */
+.picker-section {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-raised);
+  padding: 8px 12px 12px;
+  margin-bottom: 4px;
+}
+
+.picker-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.picker-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.picker-item:last-child {
+  border-bottom: none;
+}
+
+.picker-item-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.picker-item-label {
+  font-size: 0.92rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.picker-item-meta {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.picker-item-meta strong {
+  color: var(--text);
+}
+
+.picker-item-remove {
+  background: var(--danger-bg);
+  border: 1px solid #fecaca;
+  color: var(--danger);
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.picker-item-remove:hover {
+  background: #fecaca;
+}
+
+.picker-empty {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 14px 6px;
+  font-style: italic;
+}
+
+.picker-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+.picker-foot .btn-secondary {
+  flex-shrink: 0;
+}
+
+.picker-total {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.picker-total strong {
+  font-size: 1rem;
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* ---------- Picker dropdown (in Add Item modal) ---------- */
+select.form-input optgroup {
+  font-weight: 700;
+  color: var(--text);
+}
+
+select.form-input option {
+  font-weight: 400;
+  color: var(--text);
+}
