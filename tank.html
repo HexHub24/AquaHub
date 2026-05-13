@@ -74,6 +74,65 @@
               </div>
             </div>
 
+            <div class="card setup-card">
+              <div class="card-head-row">
+                <h2>Setup</h2>
+                <button id="editSetupBtn" class="btn-secondary btn-inline" type="button">Edit setup</button>
+              </div>
+
+              <div id="setupEmpty" class="empty-state" style="display: none; padding: 24px 10px;">
+                <div class="empty-icon">📐</div>
+                <p class="text-muted">Add dimensions, substrate, and hardscape to calculate usable water, weight, and dosing volumes.</p>
+              </div>
+
+              <div id="setupBody" style="display: none">
+                <div class="setup-headline">
+                  <div class="setup-stat-big">
+                    <div class="setup-stat-label">Usable water</div>
+                    <div class="setup-stat-value">
+                      <span id="setupUsableWater">—</span>
+                      <span class="setup-stat-unit">gal</span>
+                    </div>
+                    <div class="setup-stat-aux" id="setupUsableWaterAux"></div>
+                  </div>
+                  <div class="setup-stat-big">
+                    <div class="setup-stat-label">Total filled weight</div>
+                    <div class="setup-stat-value">
+                      <span id="setupTotalWeight">—</span>
+                      <span class="setup-stat-unit">lbs</span>
+                    </div>
+                    <div class="setup-stat-aux" id="setupFloorLoad"></div>
+                  </div>
+                </div>
+
+                <div id="setupFloorAdvice" class="setup-advice" style="display: none"></div>
+
+                <details class="bioload-breakdown">
+                  <summary>Weight breakdown</summary>
+                  <dl class="setup-breakdown">
+                    <div><dt>Tank (empty)</dt><dd><span id="setupWeightTank">—</span> lbs</dd></div>
+                    <div><dt>Water</dt><dd><span id="setupWeightWater">—</span> lbs</dd></div>
+                    <div><dt>Substrate</dt><dd><span id="setupWeightSubstrate">—</span> lbs</dd></div>
+                    <div><dt>Hardscape</dt><dd><span id="setupWeightHardscape">—</span> lbs</dd></div>
+                    <div><dt>Equipment</dt><dd><span id="setupWeightEquipment">—</span> lbs</dd></div>
+                  </dl>
+                </details>
+
+                <details class="bioload-breakdown">
+                  <summary>Dosing reference</summary>
+                  <dl class="setup-breakdown">
+                    <div><dt>Usable volume</dt><dd><span id="setupDosingGal">—</span> gal / <span id="setupDosingL">—</span> L</dd></div>
+                    <div><dt>Volume (ml)</dt><dd><span id="setupDosingMl">—</span> ml</dd></div>
+                    <div><dt>"Per 10 gal" doses</dt><dd>× <span id="setupDosing10Gal">—</span></dd></div>
+                    <div><dt>"Per 10 L" doses</dt><dd>× <span id="setupDosing10L">—</span></dd></div>
+                  </dl>
+                  <p class="bioload-method-note">
+                    Multiply each "per 10 gal" or "per 10 L" dose by your real water volume to get the correct amount. AquaHub uses your usable water, not advertised tank size.
+                  </p>
+                </details>
+              </div>
+            </div>
+
             <div class="card livestock-card">
               <div class="card-head-row">
                 <h2>Livestock</h2>
@@ -306,9 +365,89 @@
       </div>
     </div>
 
+    <!-- Edit Setup Modal -->
+    <div id="setupModal" class="modal-backdrop" style="display: none">
+      <div class="modal modal-large" role="dialog" aria-modal="true" aria-labelledby="setupModalTitle">
+        <div class="modal-header">
+          <h3 id="setupModalTitle">Tank setup</h3>
+          <button class="modal-close" id="setupModalCloseBtn" type="button" aria-label="Close">×</button>
+        </div>
+        <div class="modal-body">
+          <div id="setupModalAlert" class="alert" role="alert"></div>
+          <p class="form-hint" style="margin-bottom: 16px">
+            These let us calculate real usable water volume, total weight, floor load, and accurate dosing.
+            Skip any field you don't know — we'll just leave that part of the math out.
+          </p>
+
+          <h4 class="detail-subhead">Dimensions (outside, in inches)</h4>
+          <div class="form-row setup-dim-row">
+            <div class="form-group">
+              <label class="form-label" for="setupLength">Length</label>
+              <input id="setupLength" type="number" class="form-input" min="0" step="0.5" placeholder="e.g. 48" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="setupWidth">Width</label>
+              <input id="setupWidth" type="number" class="form-input" min="0" step="0.5" placeholder="e.g. 18" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="setupHeight">Height</label>
+              <input id="setupHeight" type="number" class="form-input" min="0" step="0.5" placeholder="e.g. 21" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="setupMaterial">Tank material</label>
+            <select id="setupMaterial" class="form-input">
+              <option value="glass">Glass</option>
+              <option value="acrylic">Acrylic</option>
+            </select>
+          </div>
+
+          <h4 class="detail-subhead" style="margin-top: 18px">Substrate</h4>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="setupSubstrateType">Type</label>
+              <select id="setupSubstrateType" class="form-input">
+                <option value="">— none —</option>
+                <option value="gravel">Gravel</option>
+                <option value="sand">Sand</option>
+                <option value="aquasoil">Aquasoil</option>
+                <option value="crushed_coral">Crushed coral</option>
+                <option value="aragonite">Aragonite</option>
+                <option value="bare_bottom">Bare bottom</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="setupSubstrateDepth">Depth (in)</label>
+              <input id="setupSubstrateDepth" type="number" class="form-input" min="0" step="0.25" placeholder="e.g. 2" />
+            </div>
+          </div>
+
+          <h4 class="detail-subhead" style="margin-top: 18px">Extras (estimates, optional)</h4>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="setupHardscape">Hardscape (lbs)</label>
+              <input id="setupHardscape" type="number" class="form-input" min="0" step="0.5" placeholder="rocks + wood" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="setupEquipment">Equipment (lbs)</label>
+              <input id="setupEquipment" type="number" class="form-input" min="0" step="0.5" placeholder="filter + heater" />
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <div class="modal-footer-right">
+            <button class="btn-secondary" type="button" id="setupModalCancelBtn">Cancel</button>
+            <button id="setupModalSaveBtn" class="btn-primary btn-inline" type="button">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script type="module">
       import { supabase, requireAuth } from '/lib/supabase.js';
       import { computeBioload, statusMeta } from '/lib/bioload.js';
+      import { computeSetup, dosingTable, floorLoadAdvice, SUBSTRATE } from '/lib/setup.js';
 
       const user = await requireAuth();
       if (!user) throw new Error('not authenticated');
@@ -509,6 +648,7 @@
           }
           loadingState.style.display = 'none';
           content.style.display = 'block';
+          renderSetup();
           await loadLivestock();
         }
       }
@@ -637,7 +777,16 @@
         }
         volumeWarn.style.display = 'none';
 
-        const result = computeBioload(currentTank, livestock);
+        // Use usable water volume (after substrate displacement) if we can compute it.
+        // Falls back to advertised volume when setup info is incomplete.
+        const setup = computeSetup(currentTank);
+        const tankForBioload = {
+          ...currentTank,
+          volume_gallons: setup.usableWater !== null
+            ? setup.usableWater
+            : currentTank.volume_gallons,
+        };
+        const result = computeBioload(tankForBioload, livestock);
         const meta = statusMeta(result.status);
 
         // Status badge
@@ -737,6 +886,156 @@
           </li>
         `;
       }
+
+      // ---- Setup card ----
+      function renderSetup() {
+        if (!currentTank) return;
+        const empty = document.getElementById('setupEmpty');
+        const body = document.getElementById('setupBody');
+
+        const setup = computeSetup(currentTank);
+
+        // Show empty state if we don't have at least enough to compute usable water
+        // (need volume + footprint at minimum to do anything meaningful)
+        const hasMinimum =
+          setup.advertisedGallons &&
+          setup.footprintSqFt;
+
+        if (!hasMinimum) {
+          empty.style.display = 'block';
+          body.style.display = 'none';
+          return;
+        }
+
+        empty.style.display = 'none';
+        body.style.display = 'block';
+
+        // Headline stats
+        document.getElementById('setupUsableWater').textContent =
+          setup.usableWater !== null ? setup.usableWater.toFixed(1) : '—';
+        document.getElementById('setupUsableWaterAux').textContent =
+          setup.advertisedGallons && setup.usableWater !== null
+            ? `${setup.advertisedGallons} gal advertised − ${(setup.waterDisplacedGal + setup.hardscapeDisplacedGal).toFixed(1)} gal displaced`
+            : '';
+
+        document.getElementById('setupTotalWeight').textContent =
+          setup.totalWeight !== null ? Math.round(setup.totalWeight).toLocaleString() : '—';
+
+        const floorEl = document.getElementById('setupFloorLoad');
+        if (setup.floorLoadPsf !== null) {
+          floorEl.textContent = `${Math.round(setup.floorLoadPsf)} lbs / sq ft on the floor`;
+        } else {
+          floorEl.textContent = '';
+        }
+
+        // Floor advice
+        const advice = floorLoadAdvice(setup.floorLoadStatus);
+        const adviceEl = document.getElementById('setupFloorAdvice');
+        if (advice && setup.floorLoadStatus) {
+          adviceEl.textContent = advice;
+          adviceEl.className = `setup-advice setup-advice-${setup.floorLoadStatus}`;
+          adviceEl.style.display = 'block';
+        } else {
+          adviceEl.style.display = 'none';
+        }
+
+        // Weight breakdown
+        const setNum = (id, v) => {
+          document.getElementById(id).textContent = v !== null && v !== undefined ? Math.round(v) : '—';
+        };
+        setNum('setupWeightTank', setup.tankWeight);
+        setNum('setupWeightWater', setup.waterWeight);
+        setNum('setupWeightSubstrate', setup.substrateWeight);
+        setNum('setupWeightHardscape', setup.hardscapeWeight);
+        setNum('setupWeightEquipment', setup.equipmentWeight);
+
+        // Dosing table
+        const dose = dosingTable(setup.usableWater);
+        if (dose) {
+          document.getElementById('setupDosingGal').textContent = setup.usableWater.toFixed(1);
+          document.getElementById('setupDosingL').textContent = dose.liters.toFixed(1);
+          document.getElementById('setupDosingMl').textContent = dose.ml.toLocaleString();
+          document.getElementById('setupDosing10Gal').textContent = dose.capfulsPerDose10Gal.toFixed(2);
+          document.getElementById('setupDosing10L').textContent = dose.capfulsPerDose10L.toFixed(2);
+        }
+      }
+
+      // ---- Setup edit modal ----
+      const setupModal = document.getElementById('setupModal');
+      const setupModalAlert = document.getElementById('setupModalAlert');
+
+      function openSetupModal() {
+        if (!currentTank) return;
+        clearAlert(setupModalAlert);
+        document.getElementById('setupLength').value         = currentTank.length_inches ?? '';
+        document.getElementById('setupWidth').value          = currentTank.width_inches ?? '';
+        document.getElementById('setupHeight').value         = currentTank.height_inches ?? '';
+        document.getElementById('setupMaterial').value       = currentTank.tank_material ?? 'glass';
+        document.getElementById('setupSubstrateType').value  = currentTank.substrate_type ?? '';
+        document.getElementById('setupSubstrateDepth').value = currentTank.substrate_depth_inches ?? '';
+        document.getElementById('setupHardscape').value      = currentTank.hardscape_weight_lbs ?? '';
+        document.getElementById('setupEquipment').value      = currentTank.equipment_weight_lbs ?? '';
+        setupModal.style.display = 'flex';
+      }
+      function closeSetupModal() { setupModal.style.display = 'none'; }
+
+      async function saveSetup() {
+        clearAlert(setupModalAlert);
+        const numOrNull = (id) => {
+          const v = document.getElementById(id).value.trim();
+          return v === '' ? null : Number(v);
+        };
+        const strOrNull = (id) => {
+          const v = document.getElementById(id).value;
+          return v === '' ? null : v;
+        };
+
+        const updates = {
+          length_inches:          numOrNull('setupLength'),
+          width_inches:           numOrNull('setupWidth'),
+          height_inches:          numOrNull('setupHeight'),
+          tank_material:          strOrNull('setupMaterial'),
+          substrate_type:         strOrNull('setupSubstrateType'),
+          substrate_depth_inches: numOrNull('setupSubstrateDepth'),
+          hardscape_weight_lbs:   numOrNull('setupHardscape'),
+          equipment_weight_lbs:   numOrNull('setupEquipment'),
+        };
+
+        // Basic validation
+        for (const [k, v] of Object.entries(updates)) {
+          if (v !== null && typeof v === 'number' && (Number.isNaN(v) || v < 0)) {
+            showAlert(setupModalAlert, `Invalid value for ${k.replace(/_/g, ' ')}.`);
+            return;
+          }
+        }
+
+        const saveBtn = document.getElementById('setupModalSaveBtn');
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving…';
+
+        const { data, error } = await supabase
+          .from('tanks').update(updates).eq('id', currentTank.id)
+          .select().maybeSingle();
+
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save';
+
+        if (error) {
+          showAlert(setupModalAlert, `Save failed: ${error.message}`);
+          return;
+        }
+
+        currentTank = data || { ...currentTank, ...updates };
+        closeSetupModal();
+        renderSetup();
+        renderBioload(); // bioload depends on usable volume
+      }
+
+      document.getElementById('editSetupBtn').addEventListener('click', openSetupModal);
+      document.getElementById('setupModalCloseBtn').addEventListener('click', closeSetupModal);
+      document.getElementById('setupModalCancelBtn').addEventListener('click', closeSetupModal);
+      document.getElementById('setupModalSaveBtn').addEventListener('click', saveSetup);
+      setupModal.addEventListener('click', (e) => { if (e.target === setupModal) closeSetupModal(); });
 
       // ---- Add modal ----
       function openAddModal() {
@@ -1166,6 +1465,7 @@
         if (e.key === 'Escape') {
           if (addModal.style.display !== 'none') closeAddModal();
           if (editModal.style.display !== 'none') closeEditModal();
+          if (setupModal.style.display !== 'none') closeSetupModal();
         }
       });
 
