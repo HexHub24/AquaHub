@@ -190,6 +190,7 @@
     <script type="module">
       import { supabase, requireAuth } from '/lib/supabase.js';
       import { computeBioload, statusMeta } from '/lib/bioload.js';
+      import { computeSetup } from '/lib/setup.js';
 
       const user = await requireAuth();
       if (!user) throw new Error('not authenticated');
@@ -251,7 +252,12 @@
         if (!tankId) return;
         const { data: tank } = await supabase.from('tanks').select('*').eq('id', tankId).maybeSingle();
         if (!tank) return;
-        plannerVolume.value = tank.volume_gallons || '';
+        // Use usable water volume if setup info is filled in, else fall back to advertised.
+        const setup = computeSetup(tank);
+        plannerVolume.value =
+          setup.usableWater !== null
+            ? setup.usableWater.toFixed(1)
+            : (tank.volume_gallons || '');
         plannerType.value = tank.tank_type || 'freshwater';
 
         // Load livestock from this tank into the plan
