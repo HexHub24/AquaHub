@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0c4a6e" />
+    <title>Trends &amp; Logs — AquaHub</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="manifest" href="/manifest.json" />
+  </head>
+  <body class="app-body">
+    <div class="app-layout">
+      <button class="nav-mobile-toggle" id="navMobileToggle" aria-label="Open menu" type="button">☰</button>
+
+      <aside class="app-sidebar" id="appSidebar">
+        <div class="app-sidebar-head">
+          <a href="/" class="app-sidebar-brand">
+            <span class="app-sidebar-brand-icon">🐠</span>
+            <span class="app-sidebar-brand-text">AquaHub</span>
+          </a>
+          <button class="nav-sidebar-close" id="navSidebarClose" aria-label="Close menu" type="button">×</button>
+        </div>
+        <nav class="app-sidebar-nav">
+          <a href="/app.html"><span class="nav-icon">🏠</span><span class="nav-label">Dashboard</span></a>
+          <a href="/tanks.html"><span class="nav-icon">🐠</span><span class="nav-label">My Tanks</span></a>
+          <a href="/species.html"><span class="nav-icon">🌿</span><span class="nav-label">Species</span></a>
+          <a href="/bioload.html"><span class="nav-icon">📊</span><span class="nav-label">Bioload</span></a>
+          <a href="/trends.html" class="active"><span class="nav-icon">📈</span><span class="nav-label">Trends &amp; Logs</span></a>
+        </nav>
+        <div class="app-sidebar-foot">
+          <div class="app-user" id="appUser">…</div>
+          <button class="btn-secondary btn-sidebar" id="logoutBtn" type="button">Sign Out</button>
+        </div>
+      </aside>
+
+      <div class="app-sidebar-backdrop" id="appSidebarBackdrop"></div>
+
+      <main class="app-content">
+        <header class="app-content-head">
+          <div>
+            <h1 class="page-title">Trends &amp; Logs</h1>
+            <p class="text-muted" id="trendsSubtitle">Loading…</p>
+          </div>
+        </header>
+
+        <div id="trendsAlert" class="alert" role="alert"></div>
+
+        <div class="watertest-tabs trends-tabs">
+          <button type="button" class="watertest-tab active" data-tab="trends">📈 Trends</button>
+          <button type="button" class="watertest-tab" data-tab="logs">📓 Logs</button>
+        </div>
+
+        <!-- TRENDS TAB -->
+        <div id="trendsPane" class="trends-pane">
+          <div id="trendsLoading" class="empty-state">Loading data…</div>
+
+          <div id="trendsNoTanks" class="empty-state" style="display: none">
+            <div class="empty-icon">🐠</div>
+            <h3>No tanks yet</h3>
+            <p class="text-muted">Add a tank to start tracking parameter trends.</p>
+            <a href="/tanks.html" class="btn-primary btn-inline">Go to my tanks</a>
+          </div>
+
+          <div id="trendsContent" style="display: none">
+            <div class="card">
+              <div class="form-row trends-controls">
+                <div class="form-group">
+                  <label class="form-label" for="trendsTank">Tank</label>
+                  <select id="trendsTank" class="form-input"></select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="trendsParam">Parameter</label>
+                  <select id="trendsParam" class="form-input"></select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="trendsRange">Range</label>
+                  <select id="trendsRange" class="form-input">
+                    <option value="30">Last 30 days</option>
+                    <option value="60">Last 60 days</option>
+                    <option value="90">Last 90 days</option>
+                    <option value="180">Last 6 months</option>
+                    <option value="365">Last year</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="trends-chart-wrap">
+                <canvas id="trendsChart" height="240"></canvas>
+                <p id="trendsChartEmpty" class="watertest-chart-empty" style="display: none">
+                  Not enough data for this parameter yet — log at least two water tests to see a trend.
+                </p>
+              </div>
+
+              <p class="bioload-method-note" id="trendsLegendNote">
+                Solid line = parameter readings. Vertical bars = maintenance events. Click a bar to see what was done.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- LOGS TAB -->
+        <div id="logsPane" class="trends-pane" style="display: none">
+          <div class="card">
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="logsTankFilter">Tank</label>
+                <select id="logsTankFilter" class="form-input">
+                  <option value="">All tanks</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="logsTypeFilter">Type</label>
+                <select id="logsTypeFilter" class="form-input">
+                  <option value="all">All entries</option>
+                  <option value="maintenance">Maintenance only</option>
+                  <option value="water_test">Water tests only</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div id="logsEmpty" class="empty-state" style="display: none">
+            <div class="empty-icon">📓</div>
+            <p class="text-muted">No entries yet. Open a tank's detail page to add log entries or water tests.</p>
+          </div>
+
+          <ul id="logsFeed" class="logs-feed"></ul>
+        </div>
+      </main>
+    </div>
+
+    <!-- Chart.js + date adapter -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+    <script type="module">
+      import { supabase, requireAuth } from '/lib/supabase.js';
+      import { PARAMETERS, paramMeta, evaluateReading } from '/lib/watertest.js';
+
+      const user = await requireAuth();
+      if (!user) throw new Error('not authenticated');
+      document.getElementById('appUser').textContent = user.email;
+
+      function escapeHtml(s) {
+        if (s === null || s === undefined) return '';
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+      }
+      function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+      function showAlert(message) {
+        const el = document.getElementById('trendsAlert');
+        el.textContent = message;
+        el.className = 'alert show alert-error';
+      }
+
+      // ---- State ----
+      let tanks = [];
+      let waterTests = [];   // all tests, all tanks
+      let maintLogs = [];    // all maintenance logs, all tanks
+      let chartInstance = null;
+
+      // ---- Load everything once ----
+      async function loadAll() {
+        const [tanksRes, testsRes, logsRes] = await Promise.all([
+          supabase.from('tanks').select('*').order('name'),
+          supabase.from('water_tests').select('*').order('test_date', { ascending: false }).limit(1000),
+          supabase.from('maintenance_logs').select('*').order('done_at', { ascending: false }).limit(500),
+        ]);
+
+        if (tanksRes.error) { showAlert(`Could not load: ${tanksRes.error.message}`); return; }
+        tanks = tanksRes.data || [];
+        waterTests = testsRes.data || [];
+        maintLogs = logsRes.data || [];
+
+        document.getElementById('trendsLoading').style.display = 'none';
+
+        if (tanks.length === 0) {
+          document.getElementById('trendsNoTanks').style.display = 'block';
+          document.getElementById('trendsSubtitle').textContent = 'No tanks yet';
+          return;
+        }
+
+        // Subtitle
+        const totalEntries = waterTests.length + maintLogs.length;
+        document.getElementById('trendsSubtitle').textContent =
+          `${totalEntries} total entries across ${tanks.length} tank${tanks.length === 1 ? '' : 's'}`;
+
+        // Populate tank selects
+        const tankSelect = document.getElementById('trendsTank');
+        const logsTankSelect = document.getElementById('logsTankFilter');
+        tankSelect.innerHTML = tanks.map((t) => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
+        logsTankSelect.innerHTML = '<option value="">All tanks</option>' +
+          tanks.map((t) => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
+
+        // Populate parameters dropdown — only those with data
+        rebuildParamOptions();
+
+        document.getElementById('trendsContent').style.display = 'block';
+        renderChart();
+        renderLogs();
+      }
+
+      // ---- Trends chart ----
+      function rebuildParamOptions() {
+        const tankId = document.getElementById('trendsTank').value || tanks[0]?.id;
+        const tankTests = waterTests.filter((t) => t.tank_id === tankId);
+        const usable = PARAMETERS.filter((p) =>
+          tankTests.some((t) => t[p.key] !== null && t[p.key] !== undefined)
+        );
+        const paramSelect = document.getElementById('trendsParam');
+        if (usable.length === 0) {
+          paramSelect.innerHTML = '<option value="">No data</option>';
+        } else {
+          const existing = paramSelect.value;
+          paramSelect.innerHTML = usable.map((p) =>
+            `<option value="${p.key}"${existing === p.key ? ' selected' : ''}>${p.label}${p.unit ? ' (' + p.unit + ')' : ''}</option>`
+          ).join('');
+        }
+      }
+
+      function renderChart() {
+        const canvas = document.getElementById('trendsChart');
+        const emptyMsg = document.getElementById('trendsChartEmpty');
+        const tankId = document.getElementById('trendsTank').value;
+        const param = document.getElementById('trendsParam').value;
+        const days = parseInt(document.getElementById('trendsRange').value, 10) || 30;
+        const tank = tanks.find((t) => t.id === tankId);
+        if (!tank || !param) {
+          canvas.style.display = 'none';
+          emptyMsg.style.display = 'block';
+          if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+          return;
+        }
+
+        const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+        const p = paramMeta(param);
+        if (!p) return;
+
+        // Test points
+        const points = waterTests
+          .filter((t) => t.tank_id === tankId && t[param] !== null && t[param] !== undefined && new Date(t.test_date).getTime() >= cutoff)
+          .map((t) => ({ x: new Date(t.test_date), y: Number(t[param]) }))
+          .sort((a, b) => a.x - b.x);
+
+        if (points.length < 2) {
+          canvas.style.display = 'none';
+          emptyMsg.style.display = 'block';
+          if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+          return;
+        }
+        canvas.style.display = 'block';
+        emptyMsg.style.display = 'none';
+
+        // Maintenance events in range, for this tank
+        const events = maintLogs
+          .filter((l) => l.tank_id === tankId && new Date(l.done_at).getTime() >= cutoff)
+          .map((l) => ({ x: new Date(l.done_at), title: l.title, notes: l.notes }));
+
+        // y-range for the bars: chart's data y range
+        const ys = points.map((p) => p.y);
+        const yMin = Math.min(...ys), yMax = Math.max(...ys);
+        const padding = Math.max(0.5, (yMax - yMin) * 0.15);
+        const barTop = yMax + padding;
+        const barBot = Math.max(0, yMin - padding);
+
+        // Build bar dataset — each event becomes a thin vertical line drawn via
+        // two points at the same x. Two-point line trick to draw vertical bars.
+        const eventLines = events.map((e) => ({
+          x: e.x,
+          title: e.title,
+          notes: e.notes,
+        }));
+
+        // Last reading for ideal-range overlay
+        const lastVal = points[points.length - 1].y;
+        const ev = evaluateReading(param, lastVal, tank, []);
+        const ideal = ev.ideal;
+
+        if (chartInstance) chartInstance.destroy();
+
+        const datasets = [
+          {
+            label: `${p.label}${p.unit ? ' (' + p.unit + ')' : ''}`,
+            data: points,
+            borderColor: '#0ea5e9',
+            backgroundColor: 'rgba(14, 165, 233, 0.12)',
+            fill: true,
+            tension: 0.2,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            order: 1,
+          },
+        ];
+
+        if (ideal && ideal.min !== null && ideal.max !== null && ideal.min !== undefined && ideal.max !== undefined) {
+          const xs = points.map(p => p.x);
+          datasets.push({
+            label: `Ideal min`,
+            data: xs.map((x) => ({ x, y: ideal.min })),
+            borderColor: 'rgba(34, 197, 94, 0.45)',
+            borderDash: [4, 4],
+            borderWidth: 1,
+            pointRadius: 0,
+            fill: false,
+            tension: 0,
+            order: 3,
+          });
+          datasets.push({
+            label: `Ideal max`,
+            data: xs.map((x) => ({ x, y: ideal.max })),
+            borderColor: 'rgba(34, 197, 94, 0.45)',
+            borderDash: [4, 4],
+            borderWidth: 1,
+            pointRadius: 0,
+            fill: false,
+            tension: 0,
+            order: 3,
+          });
+        }
+
+        // Maintenance event markers as a scatter dataset (points at the chart top)
+        if (eventLines.length) {
+          datasets.push({
+            label: 'Maintenance event',
+            type: 'scatter',
+            data: eventLines.map((e) => ({ x: e.x, y: barTop, title: e.title, notes: e.notes })),
+            backgroundColor: 'rgba(244, 114, 182, 0.9)',
+            borderColor: 'rgba(244, 114, 182, 1)',
+            pointStyle: 'rectRot',
+            pointRadius: 7,
+            pointHoverRadius: 10,
+            order: 0,
+          });
+        }
+
+        chartInstance = new window.Chart(canvas.getContext('2d'), {
+          type: 'line',
+          data: { datasets },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  title: (items) => {
+                    const it = items[0];
+                    return new Date(it.parsed.x).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+                  },
+                  label: (ctx) => {
+                    if (ctx.dataset.label === 'Maintenance event') {
+                      const raw = ctx.raw;
+                      return `🔧 ${raw.title}${raw.notes ? ' — ' + raw.notes : ''}`;
+                    }
+                    return `${p.label}: ${ctx.parsed.y}${p.unit ? ' ' + p.unit : ''}`;
+                  },
+                },
+              },
+            },
+            scales: {
+              x: { type: 'time', time: { unit: days <= 30 ? 'day' : 'week', displayFormats: { day: 'MMM d', week: 'MMM d' } }, grid: { display: false } },
+              y: {
+                beginAtZero: param === 'ammonia' || param === 'nitrite' || param === 'nitrate',
+                ticks: { precision: 1 },
+                suggestedMax: barTop * 1.05,
+              },
+            },
+          },
+        });
+      }
+
+      document.getElementById('trendsTank').addEventListener('change', () => { rebuildParamOptions(); renderChart(); });
+      document.getElementById('trendsParam').addEventListener('change', renderChart);
+      document.getElementById('trendsRange').addEventListener('change', renderChart);
+
+      // ---- Logs feed ----
+      function renderLogs() {
+        const tankFilter = document.getElementById('logsTankFilter').value;
+        const typeFilter = document.getElementById('logsTypeFilter').value;
+        const feed = document.getElementById('logsFeed');
+        const empty = document.getElementById('logsEmpty');
+
+        // Build combined chronological feed
+        const items = [];
+        if (typeFilter !== 'water_test') {
+          for (const l of maintLogs) {
+            if (tankFilter && l.tank_id !== tankFilter) continue;
+            items.push({
+              kind: 'maintenance',
+              when: new Date(l.done_at),
+              tank_id: l.tank_id,
+              title: l.title,
+              notes: l.notes,
+              id: l.id,
+            });
+          }
+        }
+        if (typeFilter !== 'maintenance') {
+          for (const t of waterTests) {
+            if (tankFilter && t.tank_id !== tankFilter) continue;
+            const recordedParams = PARAMETERS
+              .filter((p) => t[p.key] !== null && t[p.key] !== undefined)
+              .map((p) => `${p.label} ${t[p.key]}${p.unit ? p.unit : ''}`);
+            items.push({
+              kind: 'water_test',
+              when: new Date(t.test_date),
+              tank_id: t.tank_id,
+              title: 'Water test',
+              notes: recordedParams.join(' · ') || 'No readings',
+              id: t.id,
+            });
+          }
+        }
+        items.sort((a, b) => b.when - a.when);
+
+        if (items.length === 0) {
+          empty.style.display = 'block';
+          feed.innerHTML = '';
+          return;
+        }
+        empty.style.display = 'none';
+
+        feed.innerHTML = items.map((it) => {
+          const tank = tanks.find((t) => t.id === it.tank_id);
+          const tankName = tank ? tank.name : 'Unknown tank';
+          const tankUrl = `/tank.html?id=${it.tank_id}`;
+          const when = it.when.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+          const icon = it.kind === 'maintenance' ? '🔧' : '🧪';
+          return `
+            <li class="logs-feed-item logs-kind-${it.kind}">
+              <div class="logs-feed-icon">${icon}</div>
+              <div class="logs-feed-main">
+                <div class="logs-feed-head">
+                  <strong>${escapeHtml(it.title)}</strong>
+                  <a href="${tankUrl}" class="logs-feed-tank">${escapeHtml(tankName)} →</a>
+                </div>
+                <div class="logs-feed-meta">${when}${it.notes ? ' · ' + escapeHtml(it.notes) : ''}</div>
+              </div>
+            </li>
+          `;
+        }).join('');
+      }
+
+      document.getElementById('logsTankFilter').addEventListener('change', renderLogs);
+      document.getElementById('logsTypeFilter').addEventListener('change', renderLogs);
+
+      // ---- Tabs ----
+      document.querySelectorAll('.trends-tabs .watertest-tab').forEach((b) => {
+        b.addEventListener('click', () => {
+          const tab = b.dataset.tab;
+          document.querySelectorAll('.trends-tabs .watertest-tab').forEach((bb) => {
+            bb.classList.toggle('active', bb.dataset.tab === tab);
+          });
+          document.getElementById('trendsPane').style.display = tab === 'trends' ? 'block' : 'none';
+          document.getElementById('logsPane').style.display = tab === 'logs' ? 'block' : 'none';
+        });
+      });
+
+      // ---- Sidebar / logout ----
+      document.getElementById('logoutBtn').addEventListener('click', async () => {
+        await supabase.auth.signOut();
+        window.location.href = '/login.html';
+      });
+      const sidebar = document.getElementById('appSidebar');
+      const sidebarBackdrop = document.getElementById('appSidebarBackdrop');
+      document.getElementById('navMobileToggle').addEventListener('click', () => {
+        sidebar.classList.add('open'); sidebarBackdrop.classList.add('open');
+      });
+      const closeNav = () => { sidebar.classList.remove('open'); sidebarBackdrop.classList.remove('open'); };
+      document.getElementById('navSidebarClose').addEventListener('click', closeNav);
+      sidebarBackdrop.addEventListener('click', closeNav);
+
+      loadAll();
+    </script>
+  </body>
+</html>
