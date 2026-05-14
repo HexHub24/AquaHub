@@ -26,8 +26,7 @@
           <a href="/tanks.html" class="active"><span class="nav-icon">🐠</span><span class="nav-label">My Tanks</span></a>
           <a href="/species.html"><span class="nav-icon">🌿</span><span class="nav-label">Species</span></a>
           <a href="/bioload.html"><span class="nav-icon">📊</span><span class="nav-label">Bioload</span></a>
-          <a href="/maintenance.html"><span class="nav-icon">🔧</span><span class="nav-label">Maintenance</span></a>
-          <span class="app-sidebar-disabled"><span class="nav-icon">📈</span><span class="nav-label">Trends</span><span class="nav-soon">Soon</span></span>
+          <a href="/trends.html"><span class="nav-icon">📈</span><span class="nav-label">Trends & Logs</span></a>
         </nav>
 
         <div class="app-sidebar-foot">
@@ -184,30 +183,40 @@
 
             <div class="card maintenance-card">
               <div class="card-head-row">
-                <h2>Maintenance</h2>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                  <button id="logMaintBtn" class="btn-secondary btn-inline" type="button">+ Log</button>
-                  <button id="addMaintTaskBtn" class="btn-primary btn-inline" type="button">+ Task</button>
-                </div>
+                <h2>Logs &amp; Maintenance</h2>
+                <button id="logMaintBtn" class="btn-primary btn-inline" type="button">+ Log entry</button>
               </div>
 
               <div id="maintAlert" class="alert" role="alert"></div>
 
-              <div id="maintEmpty" class="empty-state" style="display: none; padding: 28px 10px;">
-                <div class="empty-icon">🔧</div>
-                <p class="text-muted">No tasks yet. Add a recurring task or log an ad-hoc maintenance action.</p>
+              <div id="maintOverdueBanner" class="maint-overdue-banner" style="display: none"></div>
+
+              <div id="maintLogEmpty" class="empty-state" style="display: none; padding: 24px 10px;">
+                <div class="empty-icon">📓</div>
+                <p class="text-muted">No log entries yet. Use "+ Log entry" to record what you did to this tank today.</p>
               </div>
 
-              <ul id="maintTaskList" class="maint-task-list" style="display: none"></ul>
+              <ul id="maintLogList" class="maint-log-list" style="display: none"></ul>
 
-              <details class="bioload-breakdown" id="maintSuggestionsWrap">
-                <summary>Suggested tasks for this tank</summary>
-                <ul id="maintSuggestionList" class="maint-suggestion-list"></ul>
+              <a id="viewAllTrendsLink" class="maint-view-all-link" href="/trends.html" style="display: none">
+                View all in Trends &amp; Logs →
+              </a>
+
+              <details class="bioload-breakdown" id="maintTasksWrap">
+                <summary>Recurring templates <span id="maintTasksSummary"></span></summary>
+                <div class="maint-tasks-wrap">
+                  <div class="maint-tasks-head">
+                    <p class="form-hint" style="margin: 0; flex: 1">Set up recurring tasks (water changes, filter rinse) and they'll show as overdue when due.</p>
+                    <button id="addMaintTaskBtn" class="btn-secondary btn-sm" type="button">+ Add</button>
+                  </div>
+                  <ul id="maintTaskList" class="maint-task-list" style="display: none"></ul>
+                  <div id="maintTaskEmpty" class="maint-tasks-empty">No recurring templates yet.</div>
+                </div>
               </details>
 
-              <details class="bioload-breakdown" id="maintLogsWrap" style="display: none">
-                <summary>Maintenance log</summary>
-                <ul id="maintLogList" class="maint-log-list"></ul>
+              <details class="bioload-breakdown" id="maintSuggestionsWrap">
+                <summary>Suggested templates for this tank</summary>
+                <ul id="maintSuggestionList" class="maint-suggestion-list"></ul>
               </details>
             </div>
 
@@ -1615,18 +1624,72 @@
       }
 
       function renderMaintenance() {
-        const empty = document.getElementById('maintEmpty');
-        const list = document.getElementById('maintTaskList');
-        const logsWrap = document.getElementById('maintLogsWrap');
-
-        if (maintTasks.length === 0) {
-          empty.style.display = 'block';
-          list.style.display = 'none';
+        // ---- 1. Overdue banner (very top) ----
+        const overdueTasks = maintTasks.filter((t) => taskStatus(t).status === 'overdue');
+        const banner = document.getElementById('maintOverdueBanner');
+        if (overdueTasks.length > 0) {
+          banner.innerHTML = overdueTasks.map((t) => {
+            const s = taskStatus(t);
+            return `<div class="overdue-line">
+              <span class="overdue-icon">🚨</span>
+              <span class="overdue-text"><strong>${escapeHtml(t.title)}</strong> · ${formatRelativeDue(s)}</span>
+              <button type="button" class="maint-done-btn" data-id="${t.id}">Done</button>
+            </div>`;
+          }).join('');
+          banner.style.display = 'block';
+          banner.querySelectorAll('.maint-done-btn').forEach((btn) => {
+            btn.addEventListener('click', () => markTaskDone(btn.dataset.id));
+          });
         } else {
-          empty.style.display = 'none';
-          list.style.display = 'block';
+          banner.style.display = 'none';
+        }
 
-          // Sort: overdue first, then due soon, then on track
+        // ---- 2. Log feed (primary) ----
+        const logEmpty = document.getElementById('maintLogEmpty');
+        const logList = document.getElementById('maintLogList');
+        const viewAllLink = document.getElementById('viewAllTrendsLink');
+
+        if (maintLogs.length === 0) {
+          logEmpty.style.display = 'block';
+          logList.style.display = 'none';
+          viewAllLink.style.display = 'none';
+        } else {
+          logEmpty.style.display = 'none';
+          logList.style.display = 'block';
+          // Show most recent 10 only on the tank page; "View all" goes to /trends.html
+          const recent = maintLogs.slice(0, 10);
+          logList.innerHTML = recent.map((l) => {
+            const d = new Date(l.done_at);
+            const when = d.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+            return `
+              <li class="maint-log-item" data-id="${l.id}">
+                <div class="maint-log-title">${escapeHtml(l.title)}</div>
+                <div class="maint-log-meta">${when}${l.notes ? ' · ' + escapeHtml(l.notes) : ''}</div>
+              </li>
+            `;
+          }).join('');
+          logList.querySelectorAll('.maint-log-item').forEach((li) => {
+            li.addEventListener('click', () => {
+              if (confirm('Delete this log entry?')) {
+                supabase.from('maintenance_logs').delete().eq('id', li.dataset.id).then(() => loadMaintenance());
+              }
+            });
+          });
+          viewAllLink.style.display = maintLogs.length > 10 ? 'inline-block' : 'none';
+        }
+
+        // ---- 3. Recurring templates (secondary, collapsed) ----
+        const tasksSummary = document.getElementById('maintTasksSummary');
+        const tasksWrap = document.getElementById('maintTasksWrap');
+        const taskList = document.getElementById('maintTaskList');
+        const taskEmpty = document.getElementById('maintTaskEmpty');
+
+        if (maintTasks.length > 0) {
+          tasksSummary.textContent = `(${maintTasks.length})`;
+          taskList.style.display = 'block';
+          taskEmpty.style.display = 'none';
+
+          // Sort: overdue first, due soon, on track
           const sorted = maintTasks.slice().sort((a, b) => {
             const sa = taskStatus(a);
             const sb = taskStatus(b);
@@ -1635,7 +1698,7 @@
             return sa.daysUntilDue - sb.daysUntilDue;
           });
 
-          list.innerHTML = sorted.map((t) => {
+          taskList.innerHTML = sorted.map((t) => {
             const s = taskStatus(t);
             const meta = maintStatusMeta(s.status);
             const dueText = formatRelativeDue(s);
@@ -1651,27 +1714,31 @@
                 </div>
                 <div class="maint-task-actions">
                   <button type="button" class="maint-done-btn" data-id="${t.id}" title="Mark done now">Done</button>
-                  <button type="button" class="maint-edit-btn" data-id="${t.id}" title="Edit task" aria-label="Edit">✎</button>
+                  <button type="button" class="maint-edit-btn" data-id="${t.id}" title="Edit" aria-label="Edit">✎</button>
                 </div>
               </li>
             `;
           }).join('');
 
-          list.querySelectorAll('.maint-done-btn').forEach((btn) => {
+          taskList.querySelectorAll('.maint-done-btn').forEach((btn) => {
             btn.addEventListener('click', (e) => {
               e.stopPropagation();
               markTaskDone(btn.dataset.id);
             });
           });
-          list.querySelectorAll('.maint-edit-btn').forEach((btn) => {
+          taskList.querySelectorAll('.maint-edit-btn').forEach((btn) => {
             btn.addEventListener('click', (e) => {
               e.stopPropagation();
               openMaintTaskModal(btn.dataset.id);
             });
           });
+        } else {
+          tasksSummary.textContent = '';
+          taskList.style.display = 'none';
+          taskEmpty.style.display = 'block';
         }
 
-        // Suggestions panel: only show suggestions not already present
+        // ---- 4. Suggestions ----
         const sugWrap = document.getElementById('maintSuggestionsWrap');
         const sugList = document.getElementById('maintSuggestionList');
         const existingTitles = new Set(maintTasks.map((t) => t.title.toLowerCase()));
@@ -1682,8 +1749,8 @@
           sugWrap.style.display = 'none';
         } else {
           sugWrap.style.display = '';
-          // Auto-expand suggestions if user has no tasks yet
-          if (maintTasks.length === 0) sugWrap.open = true;
+          // Auto-expand only when user has no tasks AND no logs (truly first-time)
+          if (maintTasks.length === 0 && maintLogs.length === 0) sugWrap.open = true;
           sugList.innerHTML = suggestions.map((s, i) => `
             <li class="maint-suggestion" data-index="${i}">
               <div class="maint-suggestion-main">
@@ -1699,31 +1766,6 @@
               const idx = parseInt(btn.closest('.maint-suggestion').dataset.index, 10);
               const sug = suggestions[idx];
               addSuggestedTask(sug);
-            });
-          });
-        }
-
-        // Logs panel
-        if (maintLogs.length === 0) {
-          logsWrap.style.display = 'none';
-        } else {
-          logsWrap.style.display = '';
-          const logList = document.getElementById('maintLogList');
-          logList.innerHTML = maintLogs.map((l) => {
-            const d = new Date(l.done_at);
-            const when = d.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
-            return `
-              <li class="maint-log-item" data-id="${l.id}">
-                <div class="maint-log-title">${escapeHtml(l.title)}</div>
-                <div class="maint-log-meta">${when}${l.notes ? ' · ' + escapeHtml(l.notes) : ''}</div>
-              </li>
-            `;
-          }).join('');
-          logList.querySelectorAll('.maint-log-item').forEach((li) => {
-            li.addEventListener('click', () => {
-              if (confirm('Delete this log entry?')) {
-                supabase.from('maintenance_logs').delete().eq('id', li.dataset.id).then(() => loadMaintenance());
-              }
             });
           });
         }
