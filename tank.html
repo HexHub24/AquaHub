@@ -26,6 +26,7 @@
           <a href="/tanks.html" class="active"><span class="nav-icon">🐠</span><span class="nav-label">My Tanks</span></a>
           <a href="/species.html"><span class="nav-icon">🌿</span><span class="nav-label">Species</span></a>
           <a href="/bioload.html"><span class="nav-icon">📊</span><span class="nav-label">Bioload</span></a>
+          <a href="/maintenance.html"><span class="nav-icon">🔧</span><span class="nav-label">Maintenance</span></a>
           <span class="app-sidebar-disabled"><span class="nav-icon">📈</span><span class="nav-label">Trends</span><span class="nav-soon">Soon</span></span>
         </nav>
 
@@ -179,6 +180,35 @@
                   <ul id="watertestHistory" class="watertest-history"></ul>
                 </details>
               </div>
+            </div>
+
+            <div class="card maintenance-card">
+              <div class="card-head-row">
+                <h2>Maintenance</h2>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <button id="logMaintBtn" class="btn-secondary btn-inline" type="button">+ Log</button>
+                  <button id="addMaintTaskBtn" class="btn-primary btn-inline" type="button">+ Task</button>
+                </div>
+              </div>
+
+              <div id="maintAlert" class="alert" role="alert"></div>
+
+              <div id="maintEmpty" class="empty-state" style="display: none; padding: 28px 10px;">
+                <div class="empty-icon">🔧</div>
+                <p class="text-muted">No tasks yet. Add a recurring task or log an ad-hoc maintenance action.</p>
+              </div>
+
+              <ul id="maintTaskList" class="maint-task-list" style="display: none"></ul>
+
+              <details class="bioload-breakdown" id="maintSuggestionsWrap">
+                <summary>Suggested tasks for this tank</summary>
+                <ul id="maintSuggestionList" class="maint-suggestion-list"></ul>
+              </details>
+
+              <details class="bioload-breakdown" id="maintLogsWrap" style="display: none">
+                <summary>Maintenance log</summary>
+                <ul id="maintLogList" class="maint-log-list"></ul>
+              </details>
             </div>
 
             <div class="card bioload-card">
@@ -643,6 +673,95 @@
       </div>
     </div>
 
+    <!-- Add/Edit Maintenance Task Modal -->
+    <div id="maintTaskModal" class="modal-backdrop" style="display: none">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="maintTaskTitle">
+        <div class="modal-header">
+          <h3 id="maintTaskTitle">Add task</h3>
+          <button class="modal-close" id="maintTaskCloseBtn" type="button" aria-label="Close">×</button>
+        </div>
+        <div class="modal-body">
+          <div id="maintTaskAlert" class="alert" role="alert"></div>
+          <input type="hidden" id="maintTaskId" />
+
+          <div class="form-group">
+            <label class="form-label" for="maintTaskTitleInput">Title *</label>
+            <input id="maintTaskTitleInput" type="text" class="form-input" maxlength="80" placeholder="e.g. Weekly water change" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="maintTaskInterval">Repeat every</label>
+            <select id="maintTaskInterval" class="form-input">
+              <option value="1">Daily</option>
+              <option value="3">Every 3 days</option>
+              <option value="7" selected>Weekly</option>
+              <option value="14">Every 2 weeks</option>
+              <option value="30">Monthly</option>
+              <option value="60">Every 2 months</option>
+              <option value="90">Quarterly</option>
+              <option value="180">Twice a year</option>
+              <option value="365">Yearly</option>
+              <option value="custom">Custom…</option>
+            </select>
+            <input id="maintTaskIntervalCustom" type="number" class="form-input" min="1" max="730" placeholder="days" style="display: none; margin-top: 8px" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="maintTaskNotes">Notes</label>
+            <textarea id="maintTaskNotes" class="form-input" rows="2" maxlength="500" placeholder="Optional"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="maintTaskDeleteBtn" class="btn-danger" type="button" style="display: none">Delete</button>
+          <div class="modal-footer-right">
+            <button class="btn-secondary" type="button" id="maintTaskCancelBtn">Cancel</button>
+            <button class="btn-primary btn-inline" type="button" id="maintTaskSaveBtn">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Log Maintenance Modal -->
+    <div id="maintLogModal" class="modal-backdrop" style="display: none">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="maintLogTitle">
+        <div class="modal-header">
+          <h3 id="maintLogTitle">Log maintenance</h3>
+          <button class="modal-close" id="maintLogCloseBtn" type="button" aria-label="Close">×</button>
+        </div>
+        <div class="modal-body">
+          <div id="maintLogAlert" class="alert" role="alert"></div>
+
+          <div class="form-group">
+            <label class="form-label" for="maintLogTask">Task</label>
+            <select id="maintLogTask" class="form-input">
+              <option value="">— ad-hoc (not tied to a task) —</option>
+            </select>
+          </div>
+
+          <div class="form-group" id="maintLogTitleGroup">
+            <label class="form-label" for="maintLogTitleInput">What did you do?</label>
+            <input id="maintLogTitleInput" type="text" class="form-input" maxlength="80" placeholder="e.g. Added Prime after a heavy feed" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="maintLogDate">When</label>
+            <input id="maintLogDate" type="datetime-local" class="form-input" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="maintLogNotes">Notes</label>
+            <textarea id="maintLogNotes" class="form-input" rows="2" maxlength="500" placeholder="Optional"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <div class="modal-footer-right">
+            <button class="btn-secondary" type="button" id="maintLogCancelBtn">Cancel</button>
+            <button class="btn-primary btn-inline" type="button" id="maintLogSaveBtn">Save log</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Chart.js + date adapter (must come before the module script) -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
@@ -652,6 +771,7 @@
       import { computeBioload, statusMeta } from '/lib/bioload.js';
       import { computeSetup, dosingTable, floorLoadAdvice, SUBSTRATE, HARDSCAPE_CATALOG, EQUIPMENT_CATALOG, sumItems, findCatalogItem } from '/lib/setup.js';
       import { evaluateReading, PARAMETERS, paramMeta, formatReading } from '/lib/watertest.js';
+      import { nextDue, taskStatus, statusMeta as maintStatusMeta, suggestionsFor, formatInterval, formatRelativeDue } from '/lib/maintenance.js';
 
       const user = await requireAuth();
       if (!user) throw new Error('not authenticated');
@@ -721,6 +841,8 @@
       let waterTests = [];
       let chartInstance = null;
       let currentChartParam = 'temperature';
+      let maintTasks = [];
+      let maintLogs = [];
       let selectedSpecies = null;
       let currentResults = [];
       let highlightIndex = -1;
@@ -858,6 +980,7 @@
           renderSetup();
           await loadLivestock();
           await loadWaterTests();
+          await loadMaintenance();
         }
       }
 
@@ -1478,6 +1601,345 @@
       document.getElementById('testDetailCloseBtn2').addEventListener('click', closeTestDetail);
       document.getElementById('testDetailDeleteBtn').addEventListener('click', deleteTest);
       testDetailModal.addEventListener('click', (e) => { if (e.target === testDetailModal) closeTestDetail(); });
+
+      // ---- Maintenance ----
+      async function loadMaintenance() {
+        if (!currentTank) return;
+        const [tasksRes, logsRes] = await Promise.all([
+          supabase.from('maintenance_tasks').select('*').eq('tank_id', currentTank.id).order('created_at', { ascending: true }),
+          supabase.from('maintenance_logs').select('*').eq('tank_id', currentTank.id).order('done_at', { ascending: false }).limit(50),
+        ]);
+        maintTasks = tasksRes.data || [];
+        maintLogs = logsRes.data || [];
+        renderMaintenance();
+      }
+
+      function renderMaintenance() {
+        const empty = document.getElementById('maintEmpty');
+        const list = document.getElementById('maintTaskList');
+        const logsWrap = document.getElementById('maintLogsWrap');
+
+        if (maintTasks.length === 0) {
+          empty.style.display = 'block';
+          list.style.display = 'none';
+        } else {
+          empty.style.display = 'none';
+          list.style.display = 'block';
+
+          // Sort: overdue first, then due soon, then on track
+          const sorted = maintTasks.slice().sort((a, b) => {
+            const sa = taskStatus(a);
+            const sb = taskStatus(b);
+            const rank = { overdue: 0, due_soon: 1, never_done: 2, on_track: 3 };
+            if (rank[sa.status] !== rank[sb.status]) return rank[sa.status] - rank[sb.status];
+            return sa.daysUntilDue - sb.daysUntilDue;
+          });
+
+          list.innerHTML = sorted.map((t) => {
+            const s = taskStatus(t);
+            const meta = maintStatusMeta(s.status);
+            const dueText = formatRelativeDue(s);
+            return `
+              <li class="maint-task maint-tone-${meta.tone}" data-id="${t.id}">
+                <div class="maint-task-main">
+                  <div class="maint-task-title">${escapeHtml(t.title)}</div>
+                  <div class="maint-task-meta">
+                    <span>${formatInterval(t.interval_days)}</span>
+                    <span class="maint-task-due">${dueText}</span>
+                  </div>
+                  ${t.notes ? `<div class="maint-task-notes">${escapeHtml(t.notes)}</div>` : ''}
+                </div>
+                <div class="maint-task-actions">
+                  <button type="button" class="maint-done-btn" data-id="${t.id}" title="Mark done now">Done</button>
+                  <button type="button" class="maint-edit-btn" data-id="${t.id}" title="Edit task" aria-label="Edit">✎</button>
+                </div>
+              </li>
+            `;
+          }).join('');
+
+          list.querySelectorAll('.maint-done-btn').forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              markTaskDone(btn.dataset.id);
+            });
+          });
+          list.querySelectorAll('.maint-edit-btn').forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              openMaintTaskModal(btn.dataset.id);
+            });
+          });
+        }
+
+        // Suggestions panel: only show suggestions not already present
+        const sugWrap = document.getElementById('maintSuggestionsWrap');
+        const sugList = document.getElementById('maintSuggestionList');
+        const existingTitles = new Set(maintTasks.map((t) => t.title.toLowerCase()));
+        const suggestions = suggestionsFor(currentTank.tank_type)
+          .filter((s) => !existingTitles.has(s.title.toLowerCase()));
+
+        if (suggestions.length === 0) {
+          sugWrap.style.display = 'none';
+        } else {
+          sugWrap.style.display = '';
+          // Auto-expand suggestions if user has no tasks yet
+          if (maintTasks.length === 0) sugWrap.open = true;
+          sugList.innerHTML = suggestions.map((s, i) => `
+            <li class="maint-suggestion" data-index="${i}">
+              <div class="maint-suggestion-main">
+                <div class="maint-suggestion-title">${escapeHtml(s.title)}</div>
+                <div class="maint-suggestion-meta">${formatInterval(s.interval_days)}${s.notes ? ' · ' + escapeHtml(s.notes) : ''}</div>
+              </div>
+              <button type="button" class="btn-secondary btn-sm maint-sug-add">+ Add</button>
+            </li>
+          `).join('');
+          sugList.querySelectorAll('.maint-sug-add').forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              const idx = parseInt(btn.closest('.maint-suggestion').dataset.index, 10);
+              const sug = suggestions[idx];
+              addSuggestedTask(sug);
+            });
+          });
+        }
+
+        // Logs panel
+        if (maintLogs.length === 0) {
+          logsWrap.style.display = 'none';
+        } else {
+          logsWrap.style.display = '';
+          const logList = document.getElementById('maintLogList');
+          logList.innerHTML = maintLogs.map((l) => {
+            const d = new Date(l.done_at);
+            const when = d.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+            return `
+              <li class="maint-log-item" data-id="${l.id}">
+                <div class="maint-log-title">${escapeHtml(l.title)}</div>
+                <div class="maint-log-meta">${when}${l.notes ? ' · ' + escapeHtml(l.notes) : ''}</div>
+              </li>
+            `;
+          }).join('');
+          logList.querySelectorAll('.maint-log-item').forEach((li) => {
+            li.addEventListener('click', () => {
+              if (confirm('Delete this log entry?')) {
+                supabase.from('maintenance_logs').delete().eq('id', li.dataset.id).then(() => loadMaintenance());
+              }
+            });
+          });
+        }
+      }
+
+      // Add a suggested task with one click
+      async function addSuggestedTask(sug) {
+        const { error } = await supabase.from('maintenance_tasks').insert({
+          user_id: user.id,
+          tank_id: currentTank.id,
+          title: sug.title,
+          interval_days: sug.interval_days,
+          notes: sug.notes || null,
+        });
+        if (error) {
+          showAlert(document.getElementById('maintAlert'), `Could not add: ${error.message}`);
+          return;
+        }
+        await loadMaintenance();
+      }
+
+      // Mark a task done right now → creates a log + updates last_done_at via trigger
+      async function markTaskDone(taskId) {
+        const task = maintTasks.find((t) => t.id === taskId);
+        if (!task) return;
+        const { error } = await supabase.from('maintenance_logs').insert({
+          user_id: user.id,
+          tank_id: currentTank.id,
+          task_id: taskId,
+          title: task.title,
+          done_at: new Date().toISOString(),
+        });
+        if (error) {
+          showAlert(document.getElementById('maintAlert'), `Could not log: ${error.message}`);
+          return;
+        }
+        await loadMaintenance();
+      }
+
+      // ---- Task modal ----
+      const maintTaskModal = document.getElementById('maintTaskModal');
+      const maintTaskAlert = document.getElementById('maintTaskAlert');
+      const maintTaskIntervalSelect = document.getElementById('maintTaskInterval');
+      const maintTaskIntervalCustom = document.getElementById('maintTaskIntervalCustom');
+
+      maintTaskIntervalSelect.addEventListener('change', () => {
+        if (maintTaskIntervalSelect.value === 'custom') {
+          maintTaskIntervalCustom.style.display = '';
+          maintTaskIntervalCustom.focus();
+        } else {
+          maintTaskIntervalCustom.style.display = 'none';
+        }
+      });
+
+      function openMaintTaskModal(taskId) {
+        clearAlert(maintTaskAlert);
+        const deleteBtn = document.getElementById('maintTaskDeleteBtn');
+        if (taskId) {
+          const t = maintTasks.find((x) => x.id === taskId);
+          if (!t) return;
+          document.getElementById('maintTaskTitle').textContent = 'Edit task';
+          document.getElementById('maintTaskId').value = t.id;
+          document.getElementById('maintTaskTitleInput').value = t.title;
+          document.getElementById('maintTaskNotes').value = t.notes || '';
+
+          // Set interval — pick from preset or custom
+          const preset = ['1','3','7','14','30','60','90','180','365'];
+          if (preset.includes(String(t.interval_days))) {
+            maintTaskIntervalSelect.value = String(t.interval_days);
+            maintTaskIntervalCustom.style.display = 'none';
+            maintTaskIntervalCustom.value = '';
+          } else {
+            maintTaskIntervalSelect.value = 'custom';
+            maintTaskIntervalCustom.style.display = '';
+            maintTaskIntervalCustom.value = t.interval_days;
+          }
+          deleteBtn.style.display = '';
+        } else {
+          document.getElementById('maintTaskTitle').textContent = 'Add task';
+          document.getElementById('maintTaskId').value = '';
+          document.getElementById('maintTaskTitleInput').value = '';
+          document.getElementById('maintTaskNotes').value = '';
+          maintTaskIntervalSelect.value = '7';
+          maintTaskIntervalCustom.style.display = 'none';
+          maintTaskIntervalCustom.value = '';
+          deleteBtn.style.display = 'none';
+        }
+        maintTaskModal.style.display = 'flex';
+        setTimeout(() => document.getElementById('maintTaskTitleInput').focus(), 50);
+      }
+      function closeMaintTaskModal() { maintTaskModal.style.display = 'none'; }
+
+      async function saveMaintTask() {
+        clearAlert(maintTaskAlert);
+        const id = document.getElementById('maintTaskId').value;
+        const title = document.getElementById('maintTaskTitleInput').value.trim();
+        if (!title) { showAlert(maintTaskAlert, 'Title is required.'); return; }
+
+        let intervalDays;
+        if (maintTaskIntervalSelect.value === 'custom') {
+          intervalDays = parseInt(maintTaskIntervalCustom.value, 10);
+          if (!intervalDays || intervalDays < 1 || intervalDays > 730) {
+            showAlert(maintTaskAlert, 'Custom interval must be 1–730 days.');
+            return;
+          }
+        } else {
+          intervalDays = parseInt(maintTaskIntervalSelect.value, 10);
+        }
+
+        const notes = document.getElementById('maintTaskNotes').value.trim() || null;
+
+        const saveBtn = document.getElementById('maintTaskSaveBtn');
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving…';
+
+        let error;
+        if (id) {
+          ({ error } = await supabase.from('maintenance_tasks')
+            .update({ title, interval_days: intervalDays, notes }).eq('id', id));
+        } else {
+          ({ error } = await supabase.from('maintenance_tasks').insert({
+            user_id: user.id,
+            tank_id: currentTank.id,
+            title, interval_days: intervalDays, notes,
+          }));
+        }
+
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save';
+
+        if (error) { showAlert(maintTaskAlert, `Save failed: ${error.message}`); return; }
+        closeMaintTaskModal();
+        await loadMaintenance();
+      }
+
+      async function deleteMaintTask() {
+        const id = document.getElementById('maintTaskId').value;
+        if (!id) return;
+        if (!confirm('Delete this task? Past log entries will be kept.')) return;
+        const { error } = await supabase.from('maintenance_tasks').delete().eq('id', id);
+        if (error) { showAlert(maintTaskAlert, `Delete failed: ${error.message}`); return; }
+        closeMaintTaskModal();
+        await loadMaintenance();
+      }
+
+      // ---- Log modal ----
+      const maintLogModal = document.getElementById('maintLogModal');
+      const maintLogAlert = document.getElementById('maintLogAlert');
+
+      function openMaintLogModal() {
+        clearAlert(maintLogAlert);
+        const taskSelect = document.getElementById('maintLogTask');
+        taskSelect.innerHTML = '<option value="">— ad-hoc (not tied to a task) —</option>' +
+          maintTasks.map((t) => `<option value="${t.id}">${escapeHtml(t.title)}</option>`).join('');
+        document.getElementById('maintLogTitleInput').value = '';
+        document.getElementById('maintLogNotes').value = '';
+        document.getElementById('maintLogDate').value = nowDateTimeLocal();
+        maintLogModal.style.display = 'flex';
+        setTimeout(() => taskSelect.focus(), 50);
+      }
+      function closeMaintLogModal() { maintLogModal.style.display = 'none'; }
+
+      // When a task is selected, auto-fill the title; allow override
+      document.getElementById('maintLogTask').addEventListener('change', (e) => {
+        const taskId = e.target.value;
+        const titleInput = document.getElementById('maintLogTitleInput');
+        if (taskId) {
+          const t = maintTasks.find((x) => x.id === taskId);
+          if (t) titleInput.value = t.title;
+        }
+      });
+
+      async function saveMaintLog() {
+        clearAlert(maintLogAlert);
+        const taskId = document.getElementById('maintLogTask').value || null;
+        const title = document.getElementById('maintLogTitleInput').value.trim() ||
+          (taskId ? (maintTasks.find((x) => x.id === taskId)?.title) : '');
+        if (!title) { showAlert(maintLogAlert, 'Title is required for ad-hoc logs.'); return; }
+        const doneAt = document.getElementById('maintLogDate').value
+          ? new Date(document.getElementById('maintLogDate').value).toISOString()
+          : new Date().toISOString();
+        const notes = document.getElementById('maintLogNotes').value.trim() || null;
+
+        const saveBtn = document.getElementById('maintLogSaveBtn');
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving…';
+
+        const { error } = await supabase.from('maintenance_logs').insert({
+          user_id: user.id,
+          tank_id: currentTank.id,
+          task_id: taskId,
+          title,
+          done_at: doneAt,
+          notes,
+        });
+
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save log';
+
+        if (error) { showAlert(maintLogAlert, `Save failed: ${error.message}`); return; }
+        closeMaintLogModal();
+        await loadMaintenance();
+      }
+
+      document.getElementById('addMaintTaskBtn').addEventListener('click', () => openMaintTaskModal(null));
+      document.getElementById('logMaintBtn').addEventListener('click', openMaintLogModal);
+      document.getElementById('maintTaskCloseBtn').addEventListener('click', closeMaintTaskModal);
+      document.getElementById('maintTaskCancelBtn').addEventListener('click', closeMaintTaskModal);
+      document.getElementById('maintTaskSaveBtn').addEventListener('click', saveMaintTask);
+      document.getElementById('maintTaskDeleteBtn').addEventListener('click', deleteMaintTask);
+      maintTaskModal.addEventListener('click', (e) => { if (e.target === maintTaskModal) closeMaintTaskModal(); });
+
+      document.getElementById('maintLogCloseBtn').addEventListener('click', closeMaintLogModal);
+      document.getElementById('maintLogCancelBtn').addEventListener('click', closeMaintLogModal);
+      document.getElementById('maintLogSaveBtn').addEventListener('click', saveMaintLog);
+      maintLogModal.addEventListener('click', (e) => { if (e.target === maintLogModal) closeMaintLogModal(); });
 
       // ---- Setup card ----
       function renderSetup() {
@@ -2220,6 +2682,8 @@
           if (pickerModal.style.display !== 'none') closePicker();
           else if (testDetailModal.style.display !== 'none') closeTestDetail();
           else if (logTestModal.style.display !== 'none') closeLogTestModal();
+          else if (maintTaskModal.style.display !== 'none') closeMaintTaskModal();
+          else if (maintLogModal.style.display !== 'none') closeMaintLogModal();
           else if (addModal.style.display !== 'none') closeAddModal();
           else if (editModal.style.display !== 'none') closeEditModal();
           else if (setupModal.style.display !== 'none') closeSetupModal();
