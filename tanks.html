@@ -9,36 +9,8 @@
     <link rel="manifest" href="/manifest.json" />
   </head>
   <body class="app-body">
-    <div class="app-layout">
-      <button class="nav-mobile-toggle" id="navMobileToggle" aria-label="Open menu" type="button">☰</button>
-
-      <aside class="app-sidebar" id="appSidebar">
-        <div class="app-sidebar-head">
-          <a href="/" class="app-sidebar-brand">
-            <span class="app-sidebar-brand-icon">🐠</span>
-            <span class="app-sidebar-brand-text">AquaHub</span>
-          </a>
-          <button class="nav-sidebar-close" id="navSidebarClose" aria-label="Close menu" type="button">×</button>
-        </div>
-
-        <nav class="app-sidebar-nav">
-          <a href="/app.html"><span class="nav-icon">🏠</span><span class="nav-label">Dashboard</span></a>
-          <a href="/tanks.html" class="active"><span class="nav-icon">🐠</span><span class="nav-label">My Tanks</span></a>
-          <a href="/species.html"><span class="nav-icon">🌿</span><span class="nav-label">Species</span></a>
-          <a href="/bioload.html"><span class="nav-icon">📊</span><span class="nav-label">Bioload</span></a>
-          <a href="/trends.html"><span class="nav-icon">📈</span><span class="nav-label">Trends & Logs</span></a>
-          <a href="/forum.html"><span class="nav-icon">💬</span><span class="nav-label">Forum</span></a>
-        </nav>
-
-        <div class="app-sidebar-foot">
-          <div class="app-user" id="appUser">…</div>
-          <button class="btn-secondary btn-sidebar" id="logoutBtn" type="button">Sign Out</button>
-        </div>
-      </aside>
-
-      <div class="app-sidebar-backdrop" id="appSidebarBackdrop"></div>
-
-      <main class="app-content">
+    <div id="topNavRoot"></div>
+      <main class="app-page">
         <header class="app-content-head">
           <div>
             <h1 class="page-title">My Tanks</h1>
@@ -60,7 +32,6 @@
 
         <div id="tankGrid" class="tank-grid" style="display: none"></div>
       </main>
-    </div>
 
     <div id="modalBackdrop" class="modal-backdrop" style="display: none">
       <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
@@ -126,11 +97,11 @@
 
     <script type="module">
       import { supabase, requireAuth } from '/lib/supabase.js';
+      import { mountTopNav } from '/lib/topnav.js';
 
       const user = await requireAuth();
+      await mountTopNav('tanks');
       if (!user) throw new Error('not authenticated');
-
-      document.getElementById('appUser').textContent = user.email;
 
       const grid = document.getElementById('tankGrid');
       const loadingState = document.getElementById('loadingState');
@@ -322,11 +293,6 @@
         await loadTanks();
       }
 
-      document.getElementById('logoutBtn').addEventListener('click', async () => {
-        await supabase.auth.signOut();
-        window.location.href = '/login.html';
-      });
-
       document.getElementById('addTankBtn').addEventListener('click', () => openModal());
       document.getElementById('modalCloseBtn').addEventListener('click', closeModal);
       document.getElementById('modalCancelBtn').addEventListener('click', closeModal);
@@ -336,18 +302,6 @@
       document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modalBackdrop.style.display !== 'none') closeModal(); });
 
       // Mobile sidebar toggle
-      const sidebar = document.getElementById('appSidebar');
-      const sidebarBackdrop = document.getElementById('appSidebarBackdrop');
-      document.getElementById('navMobileToggle').addEventListener('click', () => {
-        sidebar.classList.add('open');
-        sidebarBackdrop.classList.add('open');
-      });
-      const closeNav = () => {
-        sidebar.classList.remove('open');
-        sidebarBackdrop.classList.remove('open');
-      };
-      document.getElementById('navSidebarClose').addEventListener('click', closeNav);
-      sidebarBackdrop.addEventListener('click', closeNav);
 
       loadTanks();
     </script>
