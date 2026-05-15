@@ -2560,3 +2560,322 @@ body.app-body.forum-page-body .forum-main {
     padding: 64px 18px 30px;
   }
 }
+/* ============================================================
+   AquaHub — Top Nav (Phase 6: nav rework)
+   Replaces the sidebar layout. APPEND to bottom of styles.css.
+   The old sidebar CSS rules are left in place but not used
+   (no markup references them anymore).
+   ============================================================ */
+
+/* ---------- App header / top nav ---------- */
+.app-topnav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 24px 0;
+}
+
+.app-topnav-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  position: relative;
+}
+
+/* Centered brand block */
+.app-topnav-brand {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--text);
+  padding: 4px 0 10px;
+}
+
+.app-topnav-brand-icon {
+  font-size: 1.7rem;
+  line-height: 1;
+}
+
+.app-topnav-brand-text {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  background: linear-gradient(135deg, var(--primary-dark), var(--teal));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Centered nav row */
+.app-topnav-row {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.app-topnav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 8px 14px 14px;
+  position: relative;
+  border-bottom: 3px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.app-topnav-link:hover {
+  color: var(--text);
+}
+
+.app-topnav-link.active {
+  color: var(--text);
+  border-bottom-color: var(--primary);
+}
+
+.app-topnav-link .nav-icon {
+  font-size: 1.05rem;
+  width: auto;
+}
+
+/* Top-right avatar / auth area */
+.app-topnav-account {
+  position: absolute;
+  top: 4px;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-topnav-account-loggedout {
+  display: flex;
+  gap: 8px;
+}
+
+.app-avatar-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: white;
+  letter-spacing: 0;
+  user-select: none;
+  transition: transform 0.1s, box-shadow 0.15s;
+  position: relative;
+}
+
+.app-avatar-btn:hover {
+  transform: scale(1.04);
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.15);
+}
+
+.app-avatar-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ---------- Avatar dropdown ---------- */
+.app-avatar-menu {
+  position: absolute;
+  top: 48px;
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+  min-width: 240px;
+  padding: 6px;
+  z-index: 100;
+  display: none;
+}
+
+.app-avatar-menu.open { display: block; }
+
+.app-avatar-menu-head {
+  padding: 10px 12px 12px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 6px;
+}
+
+.app-avatar-menu-name {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.app-avatar-menu-email {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  word-break: break-all;
+  margin-top: 2px;
+}
+
+.app-avatar-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 500;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.app-avatar-menu-item:hover {
+  background: var(--surface-raised);
+}
+
+.app-avatar-menu-item.disabled {
+  color: var(--text-subtle);
+  cursor: not-allowed;
+}
+
+.app-avatar-menu-item.disabled:hover {
+  background: transparent;
+}
+
+.app-avatar-menu-item-arrow {
+  margin-left: auto;
+  color: var(--text-subtle);
+  font-size: 0.85rem;
+}
+
+.app-avatar-menu-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 6px 0;
+}
+
+/* ---------- Page content container ---------- */
+.app-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 24px 60px;
+}
+
+/* Forum pages need their own narrower container */
+.app-page.app-page-forum {
+  max-width: 980px;
+}
+
+/* ---------- Mobile hamburger (top-left) ---------- */
+.app-topnav-mobile-toggle {
+  display: none;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text);
+  font-family: inherit;
+  position: absolute;
+  top: 4px;
+  left: 0;
+  background: var(--surface);
+}
+
+.app-mobile-menu {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: var(--surface);
+  z-index: 200;
+  flex-direction: column;
+  padding: 16px 20px;
+  overflow-y: auto;
+}
+
+.app-mobile-menu.open { display: flex; }
+
+.app-mobile-menu-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.app-mobile-menu-close {
+  background: none;
+  border: none;
+  font-size: 1.8rem;
+  line-height: 1;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 8px;
+}
+
+.app-mobile-menu-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.app-mobile-menu-nav a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.app-mobile-menu-nav a:hover { background: var(--surface-raised); }
+
+.app-mobile-menu-nav a.active {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.1), rgba(20, 184, 166, 0.1));
+  color: var(--primary-dark);
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  .app-topnav { padding: 12px 16px 0; }
+  .app-topnav-brand { padding: 0 0 12px; }
+  .app-topnav-brand-text { font-size: 1.25rem; }
+  .app-topnav-brand-icon { font-size: 1.4rem; }
+  .app-topnav-row { display: none; }     /* hidden on mobile, use hamburger */
+  .app-topnav-mobile-toggle { display: inline-flex; align-items: center; }
+  .app-topnav-account { top: 4px; }
+  .app-page { padding: 20px 16px 40px; }
+}
+
+/* ---------- Avatar color palette (deterministic from email) ---------- */
+.avatar-c0 { background: linear-gradient(135deg, #0ea5e9, #0c4a6e); }
+.avatar-c1 { background: linear-gradient(135deg, #14b8a6, #064e3b); }
+.avatar-c2 { background: linear-gradient(135deg, #8b5cf6, #5b21b6); }
+.avatar-c3 { background: linear-gradient(135deg, #ec4899, #831843); }
+.avatar-c4 { background: linear-gradient(135deg, #f59e0b, #b45309); }
+.avatar-c5 { background: linear-gradient(135deg, #ef4444, #991b1b); }
+.avatar-c6 { background: linear-gradient(135deg, #22c55e, #166534); }
+.avatar-c7 { background: linear-gradient(135deg, #6366f1, #312e81); }
