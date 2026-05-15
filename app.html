@@ -9,106 +9,62 @@
     <link rel="manifest" href="/manifest.json" />
   </head>
   <body class="app-body">
-    <div class="app-layout">
-      <button class="nav-mobile-toggle" id="navMobileToggle" aria-label="Open menu" type="button">☰</button>
+    <div id="topNavRoot"></div>
 
-      <aside class="app-sidebar" id="appSidebar">
-        <div class="app-sidebar-head">
-          <a href="/" class="app-sidebar-brand">
-            <span class="app-sidebar-brand-icon">🐠</span>
-            <span class="app-sidebar-brand-text">AquaHub</span>
-          </a>
-          <button class="nav-sidebar-close" id="navSidebarClose" aria-label="Close menu" type="button">×</button>
-        </div>
+    <main class="app-page">
+      <header class="app-content-head">
+        <h1 class="page-title">Dashboard</h1>
+      </header>
 
-        <nav class="app-sidebar-nav">
-          <a href="/app.html" class="active">
-            <span class="nav-icon">🏠</span>
-            <span class="nav-label">Dashboard</span>
-          </a>
-          <a href="/tanks.html">
-            <span class="nav-icon">🐠</span>
-            <span class="nav-label">My Tanks</span>
-          </a>
-          <a href="/species.html">
-            <span class="nav-icon">🌿</span>
-            <span class="nav-label">Species</span>
-          </a>
-          <a href="/bioload.html">
-            <span class="nav-icon">📊</span>
-            <span class="nav-label">Bioload</span>
-          </a>
-          <a href="/trends.html">
-            <span class="nav-icon">📈</span>
-            <span class="nav-label">Trends & Logs</span>
-          </a>
-          <a href="/forum.html">
-            <span class="nav-icon">💬</span>
-            <span class="nav-label">Forum</span>
-          </a>
-        </nav>
+      <section class="card welcome-card">
+        <h2 id="greeting">Welcome 👋</h2>
+        <p class="text-muted" id="greetingSub">Loading your account…</p>
+      </section>
 
-        <div class="app-sidebar-foot">
-          <div class="app-user" id="appUser">…</div>
-          <button class="btn-secondary btn-sidebar" id="logoutBtn" type="button">Sign Out</button>
-        </div>
-      </aside>
+      <h2 class="section-heading">Your aquariums</h2>
+      <div class="dashboard-grid">
+        <a class="dashboard-tile dashboard-tile-primary" href="/tanks.html">
+          <div class="dashboard-tile-icon">🐠</div>
+          <div class="dashboard-tile-title">My Tanks</div>
+          <div class="dashboard-tile-meta" id="tankCountMeta">—</div>
+        </a>
 
-      <div class="app-sidebar-backdrop" id="appSidebarBackdrop"></div>
+        <a class="dashboard-tile" href="/species.html">
+          <div class="dashboard-tile-icon">🌿</div>
+          <div class="dashboard-tile-title">Species Library</div>
+          <div class="dashboard-tile-meta">Browse →</div>
+        </a>
 
-      <main class="app-content">
-        <header class="app-content-head">
-          <h1 class="page-title">Dashboard</h1>
-        </header>
+        <a class="dashboard-tile" href="/bioload.html">
+          <div class="dashboard-tile-icon">📊</div>
+          <div class="dashboard-tile-title">Bioload Calculator</div>
+          <div class="dashboard-tile-meta">Plan stocking →</div>
+        </a>
 
-        <section class="card welcome-card">
-          <h2 id="greeting">Welcome 👋</h2>
-          <p class="text-muted" id="greetingSub">Loading your account…</p>
-        </section>
+        <a class="dashboard-tile" href="/trends.html" id="trendsTile">
+          <div class="dashboard-tile-icon">📈</div>
+          <div class="dashboard-tile-title">Trends & Logs</div>
+          <div class="dashboard-tile-meta" id="trendsCountMeta">—</div>
+        </a>
 
-        <h2 class="section-heading">Your aquariums</h2>
-        <div class="dashboard-grid">
-          <a class="dashboard-tile dashboard-tile-primary" href="/tanks.html">
-            <div class="dashboard-tile-icon">🐠</div>
-            <div class="dashboard-tile-title">My Tanks</div>
-            <div class="dashboard-tile-meta" id="tankCountMeta">—</div>
-          </a>
-
-          <a class="dashboard-tile" href="/species.html">
-            <div class="dashboard-tile-icon">🌿</div>
-            <div class="dashboard-tile-title">Species Library</div>
-            <div class="dashboard-tile-meta">Browse →</div>
-          </a>
-
-          <a class="dashboard-tile" href="/bioload.html">
-            <div class="dashboard-tile-icon">📊</div>
-            <div class="dashboard-tile-title">Bioload Calculator</div>
-            <div class="dashboard-tile-meta">Plan stocking →</div>
-          </a>
-
-          <a class="dashboard-tile" href="/trends.html" id="trendsTile">
-            <div class="dashboard-tile-icon">📈</div>
-            <div class="dashboard-tile-title">Trends & Logs</div>
-            <div class="dashboard-tile-meta" id="trendsCountMeta">—</div>
-          </a>
-
-          <a class="dashboard-tile" href="/forum.html">
-            <div class="dashboard-tile-icon">💬</div>
-            <div class="dashboard-tile-title">Forum</div>
-            <div class="dashboard-tile-meta">Join the conversation →</div>
-          </a>
-        </div>
-      </main>
-    </div>
+        <a class="dashboard-tile" href="/forum.html">
+          <div class="dashboard-tile-icon">💬</div>
+          <div class="dashboard-tile-title">Forum</div>
+          <div class="dashboard-tile-meta">Join the conversation →</div>
+        </a>
+      </div>
+    </main>
 
     <script type="module">
       import { supabase, requireAuth } from '/lib/supabase.js';
+      import { mountTopNav } from '/lib/topnav.js';
       import { taskStatus } from '/lib/maintenance.js';
 
       const user = await requireAuth();
+      await mountTopNav('dashboard');
+
       if (user) {
         document.getElementById('greetingSub').textContent = `Signed in as ${user.email}`;
-        document.getElementById('appUser').textContent = user.email;
 
         const { count } = await supabase
           .from('tanks')
@@ -147,25 +103,6 @@
           trendsMeta.textContent = 'View trends & history →';
         }
       }
-
-      document.getElementById('logoutBtn').addEventListener('click', async () => {
-        await supabase.auth.signOut();
-        window.location.href = '/login.html';
-      });
-
-      // Mobile sidebar toggle
-      const sidebar = document.getElementById('appSidebar');
-      const backdrop = document.getElementById('appSidebarBackdrop');
-      document.getElementById('navMobileToggle').addEventListener('click', () => {
-        sidebar.classList.add('open');
-        backdrop.classList.add('open');
-      });
-      const closeNav = () => {
-        sidebar.classList.remove('open');
-        backdrop.classList.remove('open');
-      };
-      document.getElementById('navSidebarClose').addEventListener('click', closeNav);
-      backdrop.addEventListener('click', closeNav);
     </script>
   </body>
 </html>
