@@ -79,7 +79,7 @@
           <div class="chip-group" id="filterCare">
             <button type="button" class="filter-chip" data-value="easy">Easy</button>
             <button type="button" class="filter-chip" data-value="moderate">Moderate</button>
-            <button type="button" class="filter-chip" data-value="difficult">Difficult</button>
+            <button type="button" class="filter-chip" data-value="hard">Hard</button>
             <button type="button" class="filter-chip" data-value="expert">Expert</button>
           </div>
         </fieldset>
@@ -321,6 +321,7 @@
           ['Adult size',  s.max_size_inches ? `${s.max_size_inches}"` : null],
           ['Temperature', tempRange],
           ['pH',          phRange],
+          ['Max nitrate', s.max_nitrate != null ? `${s.max_nitrate} ppm` : null],
           ['Temperament', capitalize(s.temperament)],
           ['Diet',        capitalize(s.diet)],
           ['Care level',  capitalize(s.care_level)],
