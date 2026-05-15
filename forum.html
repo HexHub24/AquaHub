@@ -12,54 +12,11 @@
   </head>
   <body class="forum-page-body">
     <!-- Marketing nav (logged-out) -->
-    <header class="marketing-header" id="marketingHeader" style="display: none">
-      <div class="marketing-container marketing-nav">
-        <a href="/" class="marketing-logo">
-          <span class="marketing-logo-icon">🐠</span>
-          <span class="marketing-logo-text">AquaHub</span>
-        </a>
-        <nav class="marketing-nav-links" id="navLinks">
-          <a href="/features.html">Features</a>
-          <a href="/pricing.html">Pricing</a>
-          <a href="/forum.html" class="active">Forum</a>
-          <a href="/about.html">About</a>
-        </nav>
-        <div class="marketing-nav-cta">
-          <a href="/login.html" class="btn-secondary btn-inline">Sign In</a>
-          <a href="/login.html?mode=signup" class="btn-primary btn-inline">Sign Up Free</a>
-        </div>
-        <button class="marketing-nav-toggle" id="navToggle" aria-label="Toggle menu" type="button">☰</button>
-      </div>
-    </header>
 
     <!-- App layout (logged-in) -->
-    <div class="app-layout" id="appLayout" style="display: none">
-      <button class="nav-mobile-toggle" id="navMobileToggle" aria-label="Open menu" type="button">☰</button>
-      <aside class="app-sidebar" id="appSidebar">
-        <div class="app-sidebar-head">
-          <a href="/" class="app-sidebar-brand">
-            <span class="app-sidebar-brand-icon">🐠</span>
-            <span class="app-sidebar-brand-text">AquaHub</span>
-          </a>
-          <button class="nav-sidebar-close" id="navSidebarClose" aria-label="Close menu" type="button">×</button>
-        </div>
-        <nav class="app-sidebar-nav">
-          <a href="/app.html"><span class="nav-icon">🏠</span><span class="nav-label">Dashboard</span></a>
-          <a href="/tanks.html"><span class="nav-icon">🐠</span><span class="nav-label">My Tanks</span></a>
-          <a href="/species.html"><span class="nav-icon">🌿</span><span class="nav-label">Species</span></a>
-          <a href="/bioload.html"><span class="nav-icon">📊</span><span class="nav-label">Bioload</span></a>
-          <a href="/trends.html"><span class="nav-icon">📈</span><span class="nav-label">Trends &amp; Logs</span></a>
-          <a href="/forum.html" class="active"><span class="nav-icon">💬</span><span class="nav-label">Forum</span></a>
-        </nav>
-        <div class="app-sidebar-foot">
-          <div class="app-user" id="appUser">…</div>
-          <button class="btn-secondary btn-sidebar" id="logoutBtn" type="button">Sign Out</button>
-        </div>
-      </aside>
-      <div class="app-sidebar-backdrop" id="appSidebarBackdrop"></div>
-    </div>
+    <div id="topNavRoot"></div>
 
-    <main class="forum-main">
+    <main class="app-page app-page-forum">
       <div class="forum-container">
         <header class="forum-header">
           <div>
@@ -89,42 +46,11 @@
 
     <script type="module">
       import { supabase, getCurrentUser } from '/lib/supabase.js';
+      import { mountTopNav } from '/lib/topnav.js';
       import { snippet, timeAgo, fullTime } from '/lib/forum.js';
 
       const user = await getCurrentUser();
-      const marketingHeader = document.getElementById('marketingHeader');
-      const appLayout = document.getElementById('appLayout');
-
-      if (user) {
-        appLayout.style.display = 'flex';
-        document.body.classList.add('app-body');
-        document.getElementById('appUser').textContent = user.email;
-
-        const sidebar = document.getElementById('appSidebar');
-        const sidebarBackdrop = document.getElementById('appSidebarBackdrop');
-        document.getElementById('navMobileToggle').addEventListener('click', () => {
-          sidebar.classList.add('open');
-          sidebarBackdrop.classList.add('open');
-        });
-        const closeNav = () => {
-          sidebar.classList.remove('open');
-          sidebarBackdrop.classList.remove('open');
-        };
-        document.getElementById('navSidebarClose').addEventListener('click', closeNav);
-        sidebarBackdrop.addEventListener('click', closeNav);
-        document.getElementById('logoutBtn').addEventListener('click', async () => {
-          await supabase.auth.signOut();
-          window.location.reload();
-        });
-      } else {
-        marketingHeader.style.display = '';
-        document.body.classList.add('marketing-body');
-        document.getElementById('navToggle')?.addEventListener('click', () => {
-          document.getElementById('navLinks').classList.toggle('open');
-        });
-        // Logged-out users can read but not post
-        document.getElementById('newThreadCta').href = '/login.html?next=/forum-compose.html';
-      }
+      await mountTopNav('forum', { publicMode: true });
 
       function escapeHtml(s) {
         if (s === null || s === undefined) return '';
