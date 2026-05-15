@@ -62,8 +62,11 @@
               <button type="button" data-md="ul" title="Bullet list">• ☰</button>
               <button type="button" data-md="ol" title="Numbered list">1. ☰</button>
               <span class="forum-editor-divider"></span>
+              <button type="button" data-md="image" title="Upload image" id="composeImageBtn">📷 Image</button>
+              <span class="forum-editor-divider"></span>
               <button type="button" id="previewToggle" class="forum-editor-preview-btn">Preview</button>
             </div>
+            <div id="composeUploadStatus" class="forum-upload-status" style="display: none"></div>
             <textarea id="threadBody" class="form-input forum-editor" rows="12" maxlength="20000" placeholder="Write your post. Markdown is supported — **bold**, *italic*, `code`, [link](url), > quote, lists with - or 1."></textarea>
             <div id="previewPane" class="forum-preview-pane" style="display: none"></div>
             <p class="form-hint">Markdown supported. Be helpful and kind.</p>
@@ -89,6 +92,7 @@
       import { supabase, requireAuth } from '/lib/supabase.js';
       import { mountTopNav } from '/lib/topnav.js';
       import { renderMarkdown, validateDisplayName, titleProfanityCheck, buildTankSnapshot } from '/lib/forum.js';
+      import { pickAndUploadForumImage } from '/lib/forum-upload.js';
       import { computeBioload } from '/lib/bioload.js';
 
       const user = await requireAuth();
@@ -232,7 +236,7 @@
           ta.focus();
         }
         document.querySelectorAll('.forum-editor-toolbar [data-md]').forEach((btn) => {
-          btn.addEventListener('click', () => {
+          btn.addEventListener('click', async () => {
             const kind = btn.dataset.md;
             if (kind === 'bold') wrap('**', '**');
             else if (kind === 'italic') wrap('*', '*');
@@ -245,8 +249,49 @@
             else if (kind === 'quote') prefixLines('>');
             else if (kind === 'ul') prefixLines('-');
             else if (kind === 'ol') prefixLines('ol');
+            else if (kind === 'image') {
+              await handleImageUpload(btn, ta);
+            }
           });
         });
+
+        async function handleImageUpload(btn, textarea) {
+          const status = document.getElementById('composeUploadStatus');
+          btn.disabled = true;
+          const showStatus = (msg, tone = 'info') => {
+            status.style.display = 'block';
+            status.textContent = msg;
+            status.className = `forum-upload-status forum-upload-status-${tone}`;
+          };
+          try {
+            const onProgress = (stage) => {
+              if (stage === 'reading')   showStatus('Reading file…');
+              else if (stage === 'resizing') showStatus('Resizing image…');
+              else if (stage === 'done')   showStatus('');
+            };
+            const { url } = await pickAndUploadForumImage(user.id, onProgress);
+            // Insert markdown image syntax at cursor on its own line
+            const start = textarea.selectionStart;
+            const before = textarea.value.slice(0, start);
+            const after = textarea.value.slice(start);
+            // Add leading newline if not already at start of line
+            const prefix = (before === '' || before.endsWith('\n')) ? '' : '\n';
+            const insert = `${prefix}![image](${url})\n`;
+            textarea.value = before + insert + after;
+            const newPos = start + insert.length;
+            textarea.focus();
+            textarea.selectionStart = textarea.selectionEnd = newPos;
+            status.style.display = 'none';
+          } catch (err) {
+            if (err.message === 'Cancelled.') {
+              status.style.display = 'none';
+            } else {
+              showStatus(`Upload failed: ${err.message}`, 'error');
+            }
+          } finally {
+            btn.disabled = false;
+          }
+        }
 
         // Preview toggle
         const previewBtn = document.getElementById('previewToggle');
