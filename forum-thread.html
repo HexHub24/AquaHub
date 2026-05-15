@@ -46,7 +46,18 @@
           <section class="forum-reply-box" id="replyBox" style="display: none">
             <h3 class="detail-subhead">Add a reply</h3>
             <div id="replyAlert" class="alert" role="alert"></div>
-            <textarea id="replyBody" class="form-input" rows="5" maxlength="20000" placeholder="Write your reply (markdown supported — **bold**, *italic*, `code`, links, lists, etc.)"></textarea>
+            <div class="forum-editor-toolbar">
+              <button type="button" data-md="bold" title="Bold">𝐁</button>
+              <button type="button" data-md="italic" title="Italic"><em>I</em></button>
+              <button type="button" data-md="code" title="Inline code">&lt;/&gt;</button>
+              <button type="button" data-md="link" title="Link">🔗</button>
+              <button type="button" data-md="quote" title="Quote">❝</button>
+              <button type="button" data-md="ul" title="Bullet list">• ☰</button>
+              <span class="forum-editor-divider"></span>
+              <button type="button" data-md="image" title="Upload image" id="replyImageBtn">📷 Image</button>
+            </div>
+            <textarea id="replyBody" class="form-input forum-editor" rows="5" maxlength="20000" placeholder="Write your reply (markdown supported — **bold**, *italic*, `code`, links, lists, etc.)"></textarea>
+            <div id="replyUploadStatus" class="forum-upload-status" style="display: none"></div>
             <div class="forum-reply-actions">
               <span class="form-hint">Markdown supported. Be helpful and kind.</span>
               <button id="replyPostBtn" class="btn-primary btn-inline" type="button">Post reply</button>
@@ -101,6 +112,7 @@
       import { supabase, getCurrentUser } from '/lib/supabase.js';
       import { mountTopNav } from '/lib/topnav.js';
       import { renderMarkdown, timeAgo, fullTime, validateDisplayName } from '/lib/forum.js';
+      import { pickAndUploadForumImage } from '/lib/forum-upload.js';
 
       const params = new URLSearchParams(window.location.search);
       const threadId = params.get('id');
@@ -221,6 +233,7 @@
             document.getElementById('replyLocked').style.display = 'block';
           } else {
             document.getElementById('replyBox').style.display = 'block';
+            wireReplyToolbar();
           }
         }
       }
@@ -256,6 +269,84 @@
         const el = document.getElementById('replyAlert');
         el.textContent = message;
         el.className = 'alert show alert-error';
+      }
+
+      // Reply box toolbar wireup
+      function wireReplyToolbar() {
+        const ta = document.getElementById('replyBody');
+        if (!ta) return;
+        function wrap(beforeStr, afterStr) {
+          const start = ta.selectionStart, end = ta.selectionEnd;
+          const val = ta.value;
+          const sel = val.slice(start, end) || 'text';
+          ta.value = val.slice(0, start) + beforeStr + sel + afterStr + val.slice(end);
+          ta.focus();
+          ta.selectionStart = start + beforeStr.length;
+          ta.selectionEnd = start + beforeStr.length + sel.length;
+        }
+        function prefixLines(prefix) {
+          const start = ta.selectionStart, end = ta.selectionEnd;
+          const val = ta.value;
+          const before = val.slice(0, start);
+          const sel = val.slice(start, end) || 'item';
+          const after = val.slice(end);
+          const newSel = sel.split('\n').map((l, i) =>
+            prefix === 'ol' ? `${i + 1}. ${l}` : `${prefix} ${l}`
+          ).join('\n');
+          ta.value = before + newSel + after;
+          ta.focus();
+        }
+        async function handleReplyImageUpload(btn) {
+          const status = document.getElementById('replyUploadStatus');
+          btn.disabled = true;
+          const showStatus = (msg, tone = 'info') => {
+            status.style.display = 'block';
+            status.textContent = msg;
+            status.className = `forum-upload-status forum-upload-status-${tone}`;
+          };
+          try {
+            const onProgress = (stage) => {
+              if (stage === 'reading')   showStatus('Reading file…');
+              else if (stage === 'resizing') showStatus('Resizing image…');
+              else if (stage === 'done')   showStatus('');
+            };
+            const { url } = await pickAndUploadForumImage(user.id, onProgress);
+            const start = ta.selectionStart;
+            const before = ta.value.slice(0, start);
+            const after = ta.value.slice(start);
+            const prefix = (before === '' || before.endsWith('\n')) ? '' : '\n';
+            const insert = `${prefix}![image](${url})\n`;
+            ta.value = before + insert + after;
+            const newPos = start + insert.length;
+            ta.focus();
+            ta.selectionStart = ta.selectionEnd = newPos;
+            status.style.display = 'none';
+          } catch (err) {
+            if (err.message === 'Cancelled.') {
+              status.style.display = 'none';
+            } else {
+              showStatus(`Upload failed: ${err.message}`, 'error');
+            }
+          } finally {
+            btn.disabled = false;
+          }
+        }
+        document.querySelectorAll('#replyBox .forum-editor-toolbar [data-md]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            const kind = btn.dataset.md;
+            if (kind === 'bold') wrap('**', '**');
+            else if (kind === 'italic') wrap('*', '*');
+            else if (kind === 'code') wrap('`', '`');
+            else if (kind === 'link') {
+              const url = prompt('URL (must start with http:// or https://):');
+              if (!url) return;
+              wrap('[', `](${url})`);
+            }
+            else if (kind === 'quote') prefixLines('>');
+            else if (kind === 'ul') prefixLines('-');
+            else if (kind === 'image') await handleReplyImageUpload(btn);
+          });
+        });
       }
 
       // Reply submission
