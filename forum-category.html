@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0c4a6e" />
+    <title>Forum — AquaHub</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/marketing.css" />
+    <link rel="manifest" href="/manifest.json" />
+  </head>
+  <body class="forum-page-body">
+    <header class="marketing-header" id="marketingHeader" style="display: none">
+      <div class="marketing-container marketing-nav">
+        <a href="/" class="marketing-logo">
+          <span class="marketing-logo-icon">🐠</span>
+          <span class="marketing-logo-text">AquaHub</span>
+        </a>
+        <nav class="marketing-nav-links" id="navLinks">
+          <a href="/features.html">Features</a>
+          <a href="/pricing.html">Pricing</a>
+          <a href="/forum.html" class="active">Forum</a>
+          <a href="/about.html">About</a>
+        </nav>
+        <div class="marketing-nav-cta">
+          <a href="/login.html" class="btn-secondary btn-inline">Sign In</a>
+          <a href="/login.html?mode=signup" class="btn-primary btn-inline">Sign Up Free</a>
+        </div>
+      </div>
+    </header>
+
+    <div class="app-layout" id="appLayout" style="display: none">
+      <button class="nav-mobile-toggle" id="navMobileToggle" aria-label="Open menu" type="button">☰</button>
+      <aside class="app-sidebar" id="appSidebar">
+        <div class="app-sidebar-head">
+          <a href="/" class="app-sidebar-brand">
+            <span class="app-sidebar-brand-icon">🐠</span>
+            <span class="app-sidebar-brand-text">AquaHub</span>
+          </a>
+          <button class="nav-sidebar-close" id="navSidebarClose" aria-label="Close menu" type="button">×</button>
+        </div>
+        <nav class="app-sidebar-nav">
+          <a href="/app.html"><span class="nav-icon">🏠</span><span class="nav-label">Dashboard</span></a>
+          <a href="/tanks.html"><span class="nav-icon">🐠</span><span class="nav-label">My Tanks</span></a>
+          <a href="/species.html"><span class="nav-icon">🌿</span><span class="nav-label">Species</span></a>
+          <a href="/bioload.html"><span class="nav-icon">📊</span><span class="nav-label">Bioload</span></a>
+          <a href="/trends.html"><span class="nav-icon">📈</span><span class="nav-label">Trends &amp; Logs</span></a>
+          <a href="/forum.html" class="active"><span class="nav-icon">💬</span><span class="nav-label">Forum</span></a>
+        </nav>
+        <div class="app-sidebar-foot">
+          <div class="app-user" id="appUser">…</div>
+          <button class="btn-secondary btn-sidebar" id="logoutBtn" type="button">Sign Out</button>
+        </div>
+      </aside>
+      <div class="app-sidebar-backdrop" id="appSidebarBackdrop"></div>
+    </div>
+
+    <main class="forum-main">
+      <div class="forum-container">
+        <div class="breadcrumb">
+          <a href="/forum.html">← Forum</a>
+        </div>
+
+        <header class="forum-header">
+          <div>
+            <h1 class="page-title" id="categoryName">Loading…</h1>
+            <p class="text-muted" id="categoryDesc"></p>
+          </div>
+          <a id="newThreadCta" href="/forum-compose.html" class="btn-primary btn-inline">+ New thread</a>
+        </header>
+
+        <div id="forumAlert" class="alert" role="alert"></div>
+
+        <div class="form-row" style="max-width: 360px; margin-bottom: 14px">
+          <div class="form-group">
+            <label class="form-label" for="sortSelect">Sort</label>
+            <select id="sortSelect" class="form-input">
+              <option value="last_reply">Newest reply</option>
+              <option value="newest">Newest thread</option>
+              <option value="most_replies">Most replies</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="threadLoading" class="empty-state">Loading threads…</div>
+        <div id="threadEmpty" class="empty-state" style="display: none">
+          <div class="empty-icon">💬</div>
+          <h3>No threads yet</h3>
+          <p class="text-muted">Be the first to post in this category.</p>
+        </div>
+        <ul id="threadList" class="forum-thread-list" style="display: none"></ul>
+
+        <div id="pagination" class="forum-pagination" style="display: none">
+          <button id="prevBtn" class="btn-secondary btn-sm" type="button">← Prev</button>
+          <span id="pageInfo"></span>
+          <button id="nextBtn" class="btn-secondary btn-sm" type="button">Next →</button>
+        </div>
+      </div>
+    </main>
+
+    <script type="module">
+      import { supabase, getCurrentUser } from '/lib/supabase.js';
+      import { timeAgo, fullTime } from '/lib/forum.js';
+
+      const params = new URLSearchParams(window.location.search);
+      const slug = params.get('slug');
+
+      const user = await getCurrentUser();
+      if (user) {
+        document.getElementById('appLayout').style.display = 'flex';
+        document.body.classList.add('app-body');
+        document.getElementById('appUser').textContent = user.email;
+        const sidebar = document.getElementById('appSidebar');
+        const sidebarBackdrop = document.getElementById('appSidebarBackdrop');
+        document.getElementById('navMobileToggle').addEventListener('click', () => { sidebar.classList.add('open'); sidebarBackdrop.classList.add('open'); });
+        const closeNav = () => { sidebar.classList.remove('open'); sidebarBackdrop.classList.remove('open'); };
+        document.getElementById('navSidebarClose').addEventListener('click', closeNav);
+        sidebarBackdrop.addEventListener('click', closeNav);
+        document.getElementById('logoutBtn').addEventListener('click', async () => { await supabase.auth.signOut(); window.location.reload(); });
+      } else {
+        document.getElementById('marketingHeader').style.display = '';
+        document.body.classList.add('marketing-body');
+        document.getElementById('newThreadCta').href = `/login.html?next=/forum-compose.html?cat=${encodeURIComponent(slug || '')}`;
+      }
+
+      function escapeHtml(s) {
+        if (s === null || s === undefined) return '';
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+      }
+      function showAlert(message) {
+        const el = document.getElementById('forumAlert');
+        el.textContent = message;
+        el.className = 'alert show alert-error';
+      }
+
+      const PAGE_SIZE = 20;
+      let category = null;
+      let currentPage = 0;
+      let currentSort = 'last_reply';
+
+      async function load() {
+        if (!slug) { showAlert('No category specified.'); return; }
+
+        const { data: catRow, error: catErr } = await supabase
+          .from('forum_categories').select('*').eq('slug', slug).maybeSingle();
+        if (catErr || !catRow) { showAlert('Category not found.'); return; }
+        category = catRow;
+
+        document.getElementById('categoryName').textContent = catRow.name;
+        document.getElementById('categoryDesc').textContent = catRow.description || '';
+        if (user) {
+          document.getElementById('newThreadCta').href = `/forum-compose.html?cat=${encodeURIComponent(slug)}`;
+        }
+
+        await loadThreads();
+      }
+
+      async function loadThreads() {
+        document.getElementById('threadLoading').style.display = 'block';
+        document.getElementById('threadEmpty').style.display = 'none';
+        document.getElementById('threadList').style.display = 'none';
+        document.getElementById('pagination').style.display = 'none';
+
+        const from = currentPage * PAGE_SIZE;
+        const to = from + PAGE_SIZE - 1;
+
+        let query = supabase
+          .from('forum_threads')
+          .select('id, title, body, created_at, last_reply_at, reply_count, author_id, last_reply_author_id, is_pinned, is_locked', { count: 'exact' })
+          .eq('category_id', category.id)
+          .eq('is_hidden', false);
+
+        if (currentSort === 'last_reply') {
+          query = query.order('is_pinned', { ascending: false }).order('last_reply_at', { ascending: false });
+        } else if (currentSort === 'newest') {
+          query = query.order('is_pinned', { ascending: false }).order('created_at', { ascending: false });
+        } else if (currentSort === 'most_replies') {
+          query = query.order('is_pinned', { ascending: false }).order('reply_count', { ascending: false });
+        }
+
+        const { data: threads, count, error } = await query.range(from, to);
+
+        document.getElementById('threadLoading').style.display = 'none';
+
+        if (error) { showAlert(`Could not load: ${error.message}`); return; }
+
+        if (!threads || threads.length === 0) {
+          document.getElementById('threadEmpty').style.display = 'block';
+          return;
+        }
+
+        const authorIds = [...new Set([
+          ...threads.map((t) => t.author_id),
+          ...threads.map((t) => t.last_reply_author_id),
+        ].filter(Boolean))];
+        let nameMap = {};
+        if (authorIds.length) {
+          const { data: profs } = await supabase
+            .from('forum_user_profiles').select('user_id, display_name').in('user_id', authorIds);
+          (profs || []).forEach((p) => { nameMap[p.user_id] = p.display_name; });
+        }
+
+        const list = document.getElementById('threadList');
+        list.style.display = '';
+        list.innerHTML = threads.map((t) => {
+          const author = nameMap[t.author_id] || 'Someone';
+          const lastReplyAuthor = nameMap[t.last_reply_author_id] || author;
+          const isLastReplyFromAuthor = !t.last_reply_author_id || t.last_reply_author_id === t.author_id;
+          return `
+            <li class="forum-thread-row ${t.is_pinned ? 'forum-thread-pinned' : ''}">
+              <a href="/forum-thread.html?id=${t.id}" class="forum-thread-link">
+                <div class="forum-thread-main">
+                  <div class="forum-thread-title">
+                    ${t.is_pinned ? '<span class="forum-thread-badge">📌 Pinned</span>' : ''}
+                    ${t.is_locked ? '<span class="forum-thread-badge">🔒 Locked</span>' : ''}
+                    ${escapeHtml(t.title)}
+                  </div>
+                  <div class="forum-thread-meta">
+                    <span>by <strong>${escapeHtml(author)}</strong></span>
+                    <span title="${fullTime(t.created_at)}">${timeAgo(t.created_at)}</span>
+                    ${t.reply_count > 0 && !isLastReplyFromAuthor
+                      ? `<span class="text-muted">· last by <strong>${escapeHtml(lastReplyAuthor)}</strong> ${timeAgo(t.last_reply_at)}</span>`
+                      : ''}
+                  </div>
+                </div>
+                <div class="forum-thread-counts">
+                  <div class="forum-reply-count">${t.reply_count}</div>
+                  <div class="forum-reply-label">${t.reply_count === 1 ? 'reply' : 'replies'}</div>
+                </div>
+              </a>
+            </li>
+          `;
+        }).join('');
+
+        // Pagination
+        const totalPages = Math.max(1, Math.ceil((count || 0) / PAGE_SIZE));
+        if (totalPages > 1) {
+          document.getElementById('pagination').style.display = 'flex';
+          document.getElementById('pageInfo').textContent = `Page ${currentPage + 1} of ${totalPages}`;
+          document.getElementById('prevBtn').disabled = currentPage === 0;
+          document.getElementById('nextBtn').disabled = currentPage >= totalPages - 1;
+        }
+      }
+
+      document.getElementById('sortSelect').addEventListener('change', (e) => {
+        currentSort = e.target.value;
+        currentPage = 0;
+        loadThreads();
+      });
+      document.getElementById('prevBtn').addEventListener('click', () => {
+        if (currentPage > 0) { currentPage--; loadThreads(); window.scrollTo({ top: 0 }); }
+      });
+      document.getElementById('nextBtn').addEventListener('click', () => {
+        currentPage++; loadThreads(); window.scrollTo({ top: 0 });
+      });
+
+      load();
+    </script>
+  </body>
+</html>

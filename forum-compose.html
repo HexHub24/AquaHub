@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0c4a6e" />
+    <title>New thread — AquaHub Forum</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="manifest" href="/manifest.json" />
+  </head>
+  <body class="app-body">
+    <div class="app-layout">
+      <button class="nav-mobile-toggle" id="navMobileToggle" aria-label="Open menu" type="button">☰</button>
+      <aside class="app-sidebar" id="appSidebar">
+        <div class="app-sidebar-head">
+          <a href="/" class="app-sidebar-brand">
+            <span class="app-sidebar-brand-icon">🐠</span>
+            <span class="app-sidebar-brand-text">AquaHub</span>
+          </a>
+          <button class="nav-sidebar-close" id="navSidebarClose" aria-label="Close menu" type="button">×</button>
+        </div>
+        <nav class="app-sidebar-nav">
+          <a href="/app.html"><span class="nav-icon">🏠</span><span class="nav-label">Dashboard</span></a>
+          <a href="/tanks.html"><span class="nav-icon">🐠</span><span class="nav-label">My Tanks</span></a>
+          <a href="/species.html"><span class="nav-icon">🌿</span><span class="nav-label">Species</span></a>
+          <a href="/bioload.html"><span class="nav-icon">📊</span><span class="nav-label">Bioload</span></a>
+          <a href="/trends.html"><span class="nav-icon">📈</span><span class="nav-label">Trends &amp; Logs</span></a>
+          <a href="/forum.html" class="active"><span class="nav-icon">💬</span><span class="nav-label">Forum</span></a>
+        </nav>
+        <div class="app-sidebar-foot">
+          <div class="app-user" id="appUser">…</div>
+          <button class="btn-secondary btn-sidebar" id="logoutBtn" type="button">Sign Out</button>
+        </div>
+      </aside>
+      <div class="app-sidebar-backdrop" id="appSidebarBackdrop"></div>
+
+      <main class="app-content">
+        <div class="breadcrumb">
+          <a href="/forum.html">← Forum</a>
+        </div>
+
+        <header class="app-content-head">
+          <div>
+            <h1 class="page-title">New thread</h1>
+            <p class="text-muted">Be helpful, be kind, search before asking.</p>
+          </div>
+        </header>
+
+        <div id="composeAlert" class="alert" role="alert"></div>
+
+        <!-- Display name required prompt -->
+        <div id="needNameWrap" class="card" style="display: none">
+          <h2>Pick a display name first</h2>
+          <p class="text-muted" style="margin-bottom: 12px">Other users will see this name on your posts. You can change it later.</p>
+          <div id="needNameAlert" class="alert" role="alert"></div>
+          <div class="form-group">
+            <label class="form-label" for="needNameInput">Display name *</label>
+            <input id="needNameInput" type="text" class="form-input" maxlength="30" placeholder="e.g. ReefRunner42" />
+            <p class="form-hint">2–30 characters, letters / numbers / spaces / hyphens / underscores.</p>
+          </div>
+          <button id="needNameSaveBtn" class="btn-primary btn-inline" type="button">Save and continue</button>
+        </div>
+
+        <!-- Compose form -->
+        <div id="composeWrap" class="card" style="display: none">
+          <div class="form-group">
+            <label class="form-label" for="threadCategory">Category *</label>
+            <select id="threadCategory" class="form-input"></select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="threadTitle">Title *</label>
+            <input id="threadTitle" type="text" class="form-input" minlength="4" maxlength="140" placeholder="A clear, specific title gets more replies" />
+            <p class="form-hint">4–140 characters.</p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="threadBody">Post *</label>
+            <div class="forum-editor-toolbar">
+              <button type="button" data-md="bold" title="Bold">𝐁</button>
+              <button type="button" data-md="italic" title="Italic"><em>I</em></button>
+              <button type="button" data-md="code" title="Inline code">&lt;/&gt;</button>
+              <button type="button" data-md="link" title="Link">🔗</button>
+              <button type="button" data-md="quote" title="Quote">❝</button>
+              <button type="button" data-md="ul" title="Bullet list">• ☰</button>
+              <button type="button" data-md="ol" title="Numbered list">1. ☰</button>
+              <span class="forum-editor-divider"></span>
+              <button type="button" id="previewToggle" class="forum-editor-preview-btn">Preview</button>
+            </div>
+            <textarea id="threadBody" class="form-input forum-editor" rows="12" maxlength="20000" placeholder="Write your post. Markdown is supported — **bold**, *italic*, `code`, [link](url), > quote, lists with - or 1."></textarea>
+            <div id="previewPane" class="forum-preview-pane" style="display: none"></div>
+            <p class="form-hint">Markdown supported. Be helpful and kind.</p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="attachTankSelect">Attach a tank (optional)</label>
+            <select id="attachTankSelect" class="form-input">
+              <option value="">— don't attach a tank —</option>
+            </select>
+            <p class="form-hint">Other users will see your tank's name, type, gallons, and livestock list. They won't see costs, photos, or maintenance logs.</p>
+            <div id="attachPreview" class="forum-tank-snapshot" style="display: none; margin-top: 10px"></div>
+          </div>
+
+          <div class="forum-compose-actions">
+            <a href="/forum.html" class="btn-secondary">Cancel</a>
+            <button id="postBtn" class="btn-primary btn-inline" type="button">Post thread</button>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script type="module">
+      import { supabase, requireAuth } from '/lib/supabase.js';
+      import { renderMarkdown, validateDisplayName, titleProfanityCheck, buildTankSnapshot } from '/lib/forum.js';
+      import { computeBioload } from '/lib/bioload.js';
+
+      const user = await requireAuth();
+      if (!user) throw new Error('not authenticated');
+      document.getElementById('appUser').textContent = user.email;
+
+      // Pre-select category if ?cat=slug in URL
+      const params = new URLSearchParams(window.location.search);
+      const preselectSlug = params.get('cat');
+
+      function escapeHtml(s) {
+        if (s === null || s === undefined) return '';
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+      }
+      function showAlert(elId, message, type = 'error') {
+        const el = document.getElementById(elId);
+        el.textContent = message;
+        el.className = `alert show alert-${type}`;
+      }
+      function clearAlert(elId) {
+        const el = document.getElementById(elId);
+        el.className = 'alert';
+        el.textContent = '';
+      }
+
+      // ---- 1. Check forum profile (display name) ----
+      const { data: profile } = await supabase
+        .from('forum_user_profiles').select('*').eq('user_id', user.id).maybeSingle();
+
+      if (profile?.is_banned) {
+        showAlert('composeAlert', 'Your account is suspended from posting.');
+      } else if (!profile) {
+        document.getElementById('needNameWrap').style.display = 'block';
+
+        document.getElementById('needNameSaveBtn').addEventListener('click', async () => {
+          clearAlert('needNameAlert');
+          const name = document.getElementById('needNameInput').value.trim();
+          const err = validateDisplayName(name);
+          if (err) { showAlert('needNameAlert', err); return; }
+
+          const btn = document.getElementById('needNameSaveBtn');
+          btn.disabled = true; btn.textContent = 'Saving…';
+          const { error } = await supabase.from('forum_user_profiles').insert({
+            user_id: user.id, display_name: name,
+          });
+          btn.disabled = false; btn.textContent = 'Save and continue';
+          if (error) {
+            const msg = error.code === '23505' ? 'That display name is taken. Try another.' : error.message;
+            showAlert('needNameAlert', msg);
+            return;
+          }
+          // Re-load: now they have a profile, show the compose form
+          document.getElementById('needNameWrap').style.display = 'none';
+          await bootCompose();
+        });
+      } else {
+        await bootCompose();
+      }
+
+      async function bootCompose() {
+        document.getElementById('composeWrap').style.display = 'block';
+
+        // Load categories
+        const { data: cats } = await supabase
+          .from('forum_categories').select('*').eq('is_active', true).order('display_order');
+        const catSelect = document.getElementById('threadCategory');
+        catSelect.innerHTML = (cats || []).map((c) =>
+          `<option value="${c.id}" data-slug="${c.slug}">${escapeHtml(c.name)} — ${escapeHtml(c.description || '')}</option>`
+        ).join('');
+        if (preselectSlug) {
+          for (const opt of catSelect.options) {
+            if (opt.dataset.slug === preselectSlug) { catSelect.value = opt.value; break; }
+          }
+        }
+
+        // Load user's tanks for the attachment picker
+        const { data: tanks } = await supabase.from('tanks').select('*').order('name');
+        const tankSelect = document.getElementById('attachTankSelect');
+        tankSelect.innerHTML = '<option value="">— don\'t attach a tank —</option>' +
+          (tanks || []).map((t) =>
+            `<option value="${t.id}">${escapeHtml(t.name)} (${t.volume_gallons || '?'}g ${escapeHtml(t.tank_type || '')})</option>`
+          ).join('');
+
+        // Tank preview when one is selected
+        tankSelect.addEventListener('change', async () => {
+          const tid = tankSelect.value;
+          const preview = document.getElementById('attachPreview');
+          if (!tid) { preview.style.display = 'none'; preview.innerHTML = ''; return; }
+          const tank = (tanks || []).find((x) => x.id === tid);
+          if (!tank) return;
+          // Load livestock for snapshot
+          const { data: ls } = await supabase
+            .from('livestock')
+            .select('quantity, custom_name, species_id, species ( id, common_name, scientific_name, species_type, max_size_inches, diet, bioload_score, nitrate_offset_per_day )')
+            .eq('tank_id', tid);
+          const livestock = ls || [];
+          const bioloadRes = tank.volume_gallons ? computeBioload(tank, livestock) : null;
+          const snap = buildTankSnapshot({ tank, livestock, bioloadResult: bioloadRes });
+          const livestockLine = (snap.livestock || [])
+            .map((l) => `${l.quantity}× ${escapeHtml(l.name)}`).join(', ');
+          preview.style.display = 'block';
+          preview.innerHTML = `
+            <h3 class="forum-tank-snapshot-head">
+              <span>🐠</span>
+              <span>${escapeHtml(snap.name)}</span>
+              ${snap.bioload_pct !== null
+                ? `<span class="forum-tank-snapshot-bioload">${snap.bioload_pct}% bioload</span>` : ''}
+            </h3>
+            <div class="forum-tank-snapshot-stats">
+              ${snap.tank_type ? `<span>${escapeHtml(snap.tank_type)}</span>` : ''}
+              ${snap.volume_gallons ? `<span>${snap.volume_gallons} gal</span>` : ''}
+            </div>
+            ${livestockLine ? `<div class="forum-tank-snapshot-livestock"><strong>Livestock:</strong> ${livestockLine}</div>` : ''}
+          `;
+          // Stash the snapshot for use on submit
+          window.__pendingSnapshot = snap;
+        });
+
+        // Markdown toolbar
+        const ta = document.getElementById('threadBody');
+        function wrap(beforeStr, afterStr) {
+          const start = ta.selectionStart, end = ta.selectionEnd;
+          const val = ta.value;
+          const sel = val.slice(start, end) || 'text';
+          ta.value = val.slice(0, start) + beforeStr + sel + afterStr + val.slice(end);
+          ta.focus();
+          ta.selectionStart = start + beforeStr.length;
+          ta.selectionEnd = start + beforeStr.length + sel.length;
+        }
+        function prefixLines(prefix) {
+          const start = ta.selectionStart, end = ta.selectionEnd;
+          const val = ta.value;
+          const before = val.slice(0, start);
+          const sel = val.slice(start, end) || 'item';
+          const after = val.slice(end);
+          const newSel = sel.split('\n').map((l, i) =>
+            prefix === 'ol' ? `${i + 1}. ${l}` : `${prefix} ${l}`
+          ).join('\n');
+          ta.value = before + newSel + after;
+          ta.focus();
+        }
+        document.querySelectorAll('.forum-editor-toolbar [data-md]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const kind = btn.dataset.md;
+            if (kind === 'bold') wrap('**', '**');
+            else if (kind === 'italic') wrap('*', '*');
+            else if (kind === 'code') wrap('`', '`');
+            else if (kind === 'link') {
+              const url = prompt('URL (must start with http:// or https://):');
+              if (!url) return;
+              wrap('[', `](${url})`);
+            }
+            else if (kind === 'quote') prefixLines('>');
+            else if (kind === 'ul') prefixLines('-');
+            else if (kind === 'ol') prefixLines('ol');
+          });
+        });
+
+        // Preview toggle
+        const previewBtn = document.getElementById('previewToggle');
+        const previewPane = document.getElementById('previewPane');
+        previewBtn.addEventListener('click', () => {
+          if (previewPane.style.display === 'none') {
+            previewPane.innerHTML = renderMarkdown(ta.value || '*Nothing to preview yet.*');
+            previewPane.style.display = 'block';
+            ta.style.display = 'none';
+            previewBtn.textContent = 'Edit';
+          } else {
+            previewPane.style.display = 'none';
+            ta.style.display = '';
+            previewBtn.textContent = 'Preview';
+          }
+        });
+
+        // Submit
+        document.getElementById('postBtn').addEventListener('click', submitThread);
+      }
+
+      async function submitThread() {
+        clearAlert('composeAlert');
+        const categoryId = document.getElementById('threadCategory').value;
+        const title = document.getElementById('threadTitle').value.trim();
+        const body = document.getElementById('threadBody').value.trim();
+
+        if (!categoryId) { showAlert('composeAlert', 'Pick a category.'); return; }
+        if (title.length < 4) { showAlert('composeAlert', 'Title must be at least 4 characters.'); return; }
+        if (title.length > 140) { showAlert('composeAlert', 'Title is too long.'); return; }
+        if (body.length < 1) { showAlert('composeAlert', 'Post body cannot be empty.'); return; }
+        if (body.length > 20000) { showAlert('composeAlert', 'Post body is too long.'); return; }
+
+        const slur = titleProfanityCheck(title);
+        if (slur) { showAlert('composeAlert', `Please reword your title — "${slur}" isn't allowed.`); return; }
+
+        // Rate limit: max 3 threads/hour for accounts <24h old (handled client-side as a soft check)
+        const userAgeMs = Date.now() - new Date(user.created_at || user.confirmed_at || 0).getTime();
+        if (userAgeMs < 24 * 60 * 60 * 1000) {
+          const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+          const { count } = await supabase
+            .from('forum_threads').select('id', { count: 'exact', head: true })
+            .eq('author_id', user.id).gte('created_at', oneHourAgo);
+          if ((count || 0) >= 3) {
+            showAlert('composeAlert', 'New accounts can post up to 3 threads per hour. Try again in a bit.');
+            return;
+          }
+        }
+
+        const snapshot = (document.getElementById('attachTankSelect').value && window.__pendingSnapshot)
+          ? window.__pendingSnapshot : null;
+
+        const btn = document.getElementById('postBtn');
+        btn.disabled = true;
+        btn.textContent = 'Posting…';
+
+        const { data, error } = await supabase
+          .from('forum_threads')
+          .insert({
+            category_id: categoryId,
+            author_id: user.id,
+            title,
+            body,
+            tank_snapshot: snapshot,
+          })
+          .select()
+          .maybeSingle();
+
+        btn.disabled = false;
+        btn.textContent = 'Post thread';
+
+        if (error) {
+          showAlert('composeAlert', `Could not post: ${error.message}`);
+          return;
+        }
+        // Redirect to the new thread
+        window.location.href = `/forum-thread.html?id=${data.id}`;
+      }
+
+      // Sidebar / logout
+      document.getElementById('logoutBtn').addEventListener('click', async () => {
+        await supabase.auth.signOut();
+        window.location.href = '/login.html';
+      });
+      const sidebar = document.getElementById('appSidebar');
+      const sidebarBackdrop = document.getElementById('appSidebarBackdrop');
+      document.getElementById('navMobileToggle').addEventListener('click', () => {
+        sidebar.classList.add('open'); sidebarBackdrop.classList.add('open');
+      });
+      const closeNav = () => { sidebar.classList.remove('open'); sidebarBackdrop.classList.remove('open'); };
+      document.getElementById('navSidebarClose').addEventListener('click', closeNav);
+      sidebarBackdrop.addEventListener('click', closeNav);
+    </script>
+  </body>
+</html>

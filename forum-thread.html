@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0c4a6e" />
+    <title>Thread — AquaHub Forum</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/marketing.css" />
+    <link rel="manifest" href="/manifest.json" />
+  </head>
+  <body class="forum-page-body">
+    <header class="marketing-header" id="marketingHeader" style="display: none">
+      <div class="marketing-container marketing-nav">
+        <a href="/" class="marketing-logo">
+          <span class="marketing-logo-icon">🐠</span>
+          <span class="marketing-logo-text">AquaHub</span>
+        </a>
+        <nav class="marketing-nav-links" id="navLinks">
+          <a href="/features.html">Features</a>
+          <a href="/pricing.html">Pricing</a>
+          <a href="/forum.html" class="active">Forum</a>
+          <a href="/about.html">About</a>
+        </nav>
+        <div class="marketing-nav-cta">
+          <a href="/login.html" class="btn-secondary btn-inline">Sign In</a>
+          <a href="/login.html?mode=signup" class="btn-primary btn-inline">Sign Up Free</a>
+        </div>
+      </div>
+    </header>
+
+    <div class="app-layout" id="appLayout" style="display: none">
+      <button class="nav-mobile-toggle" id="navMobileToggle" aria-label="Open menu" type="button">☰</button>
+      <aside class="app-sidebar" id="appSidebar">
+        <div class="app-sidebar-head">
+          <a href="/" class="app-sidebar-brand">
+            <span class="app-sidebar-brand-icon">🐠</span>
+            <span class="app-sidebar-brand-text">AquaHub</span>
+          </a>
+          <button class="nav-sidebar-close" id="navSidebarClose" aria-label="Close menu" type="button">×</button>
+        </div>
+        <nav class="app-sidebar-nav">
+          <a href="/app.html"><span class="nav-icon">🏠</span><span class="nav-label">Dashboard</span></a>
+          <a href="/tanks.html"><span class="nav-icon">🐠</span><span class="nav-label">My Tanks</span></a>
+          <a href="/species.html"><span class="nav-icon">🌿</span><span class="nav-label">Species</span></a>
+          <a href="/bioload.html"><span class="nav-icon">📊</span><span class="nav-label">Bioload</span></a>
+          <a href="/trends.html"><span class="nav-icon">📈</span><span class="nav-label">Trends &amp; Logs</span></a>
+          <a href="/forum.html" class="active"><span class="nav-icon">💬</span><span class="nav-label">Forum</span></a>
+        </nav>
+        <div class="app-sidebar-foot">
+          <div class="app-user" id="appUser">…</div>
+          <button class="btn-secondary btn-sidebar" id="logoutBtn" type="button">Sign Out</button>
+        </div>
+      </aside>
+      <div class="app-sidebar-backdrop" id="appSidebarBackdrop"></div>
+    </div>
+
+    <main class="forum-main">
+      <div class="forum-container">
+        <div class="breadcrumb">
+          <a href="/forum.html">← Forum</a>
+          <span id="catBreadcrumb"></span>
+        </div>
+
+        <div id="threadLoading" class="empty-state">Loading thread…</div>
+        <div id="threadError" class="empty-state" style="display: none">
+          <div class="empty-icon">⚠️</div>
+          <h3>Thread not found</h3>
+          <p class="text-muted">The thread may have been removed or never existed.</p>
+        </div>
+
+        <article id="threadContent" style="display: none">
+          <header class="forum-thread-header">
+            <h1 id="threadTitle" class="page-title"></h1>
+            <div class="forum-thread-header-meta" id="threadHeaderMeta"></div>
+          </header>
+
+          <!-- OP -->
+          <section class="forum-post forum-post-op" id="threadOp"></section>
+
+          <!-- Tank snapshot -->
+          <section id="threadTankSnapshot" style="display: none"></section>
+
+          <!-- Replies -->
+          <h2 class="section-heading" id="repliesHeading">Replies</h2>
+          <ul id="repliesList" class="forum-replies-list"></ul>
+
+          <!-- Reply box -->
+          <section class="forum-reply-box" id="replyBox" style="display: none">
+            <h3 class="detail-subhead">Add a reply</h3>
+            <div id="replyAlert" class="alert" role="alert"></div>
+            <textarea id="replyBody" class="form-input" rows="5" maxlength="20000" placeholder="Write your reply (markdown supported — **bold**, *italic*, `code`, links, lists, etc.)"></textarea>
+            <div class="forum-reply-actions">
+              <span class="form-hint">Markdown supported. Be helpful and kind.</span>
+              <button id="replyPostBtn" class="btn-primary btn-inline" type="button">Post reply</button>
+            </div>
+          </section>
+
+          <section class="forum-reply-locked" id="replyLocked" style="display: none">
+            <p class="text-muted">🔒 This thread is locked. No new replies can be posted.</p>
+          </section>
+
+          <section class="forum-reply-loggedout" id="replyLoggedOut" style="display: none">
+            <p class="text-muted">
+              <a href="/login.html?mode=signup">Sign up</a> or
+              <a href="/login.html" id="signInLink">sign in</a> to reply.
+            </p>
+          </section>
+
+          <section class="forum-reply-needname" id="replyNeedsName" style="display: none">
+            <p>You need a display name to post.</p>
+            <button id="setNameBtn" class="btn-primary btn-inline" type="button">Set display name</button>
+          </section>
+        </article>
+      </div>
+    </main>
+
+    <!-- Display name modal -->
+    <div id="nameModal" class="modal-backdrop" style="display: none">
+      <div class="modal" role="dialog" aria-modal="true">
+        <div class="modal-header">
+          <h3>Choose a display name</h3>
+        </div>
+        <div class="modal-body">
+          <div id="nameModalAlert" class="alert" role="alert"></div>
+          <p class="form-hint" style="margin-bottom: 12px">
+            This is how other users will see you. You can change it later. 2–30 characters, letters / numbers / spaces / hyphens / underscores.
+          </p>
+          <div class="form-group">
+            <label class="form-label" for="nameInput">Display name *</label>
+            <input id="nameInput" type="text" class="form-input" maxlength="30" placeholder="e.g. ReefRunner42" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <div class="modal-footer-right">
+            <button class="btn-secondary" type="button" id="nameCancelBtn">Cancel</button>
+            <button class="btn-primary btn-inline" type="button" id="nameSaveBtn">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      import { supabase, getCurrentUser } from '/lib/supabase.js';
+      import { renderMarkdown, timeAgo, fullTime, validateDisplayName } from '/lib/forum.js';
+
+      const params = new URLSearchParams(window.location.search);
+      const threadId = params.get('id');
+
+      const user = await getCurrentUser();
+      if (user) {
+        document.getElementById('appLayout').style.display = 'flex';
+        document.body.classList.add('app-body');
+        document.getElementById('appUser').textContent = user.email;
+        const sidebar = document.getElementById('appSidebar');
+        const sidebarBackdrop = document.getElementById('appSidebarBackdrop');
+        document.getElementById('navMobileToggle').addEventListener('click', () => { sidebar.classList.add('open'); sidebarBackdrop.classList.add('open'); });
+        const closeNav = () => { sidebar.classList.remove('open'); sidebarBackdrop.classList.remove('open'); };
+        document.getElementById('navSidebarClose').addEventListener('click', closeNav);
+        sidebarBackdrop.addEventListener('click', closeNav);
+        document.getElementById('logoutBtn').addEventListener('click', async () => { await supabase.auth.signOut(); window.location.reload(); });
+      } else {
+        document.getElementById('marketingHeader').style.display = '';
+        document.body.classList.add('marketing-body');
+        document.getElementById('signInLink').href = `/login.html?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+      }
+
+      function escapeHtml(s) {
+        if (s === null || s === undefined) return '';
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+      }
+
+      let currentThread = null;
+      let myProfile = null;
+
+      async function load() {
+        if (!threadId) { showError(); return; }
+
+        const { data: thread, error: tErr } = await supabase
+          .from('forum_threads').select('*').eq('id', threadId).maybeSingle();
+        if (tErr || !thread || thread.is_hidden) { showError(); return; }
+        currentThread = thread;
+
+        // Load category, replies, and author profiles in parallel
+        const [catRes, repliesRes] = await Promise.all([
+          supabase.from('forum_categories').select('*').eq('id', thread.category_id).maybeSingle(),
+          supabase.from('forum_replies').select('*').eq('thread_id', thread.id).eq('is_hidden', false).order('created_at', { ascending: true }),
+        ]);
+        const category = catRes.data;
+        const replies = repliesRes.data || [];
+
+        // Author names (OP + all reply authors)
+        const authorIds = [...new Set([
+          thread.author_id,
+          ...replies.map((r) => r.author_id),
+        ].filter(Boolean))];
+        let nameMap = {};
+        if (authorIds.length) {
+          const { data: profs } = await supabase
+            .from('forum_user_profiles').select('user_id, display_name, post_count').in('user_id', authorIds);
+          (profs || []).forEach((p) => { nameMap[p.user_id] = p; });
+        }
+
+        // Render
+        document.getElementById('threadLoading').style.display = 'none';
+        document.getElementById('threadContent').style.display = 'block';
+
+        if (category) {
+          const catLink = document.getElementById('catBreadcrumb');
+          catLink.innerHTML = ` · <a href="/forum-category.html?slug=${encodeURIComponent(category.slug)}">${escapeHtml(category.name)}</a>`;
+        }
+
+        document.getElementById('threadTitle').textContent = thread.title;
+        const opAuthor = nameMap[thread.author_id]?.display_name || 'Someone';
+        document.getElementById('threadHeaderMeta').innerHTML = `
+          <span>by <strong>${escapeHtml(opAuthor)}</strong></span>
+          <span title="${fullTime(thread.created_at)}">${timeAgo(thread.created_at)}</span>
+          ${thread.is_locked ? '<span class="forum-thread-badge">🔒 Locked</span>' : ''}
+          ${thread.is_pinned ? '<span class="forum-thread-badge">📌 Pinned</span>' : ''}
+        `;
+
+        // OP
+        document.getElementById('threadOp').innerHTML = `
+          <header class="forum-post-head">
+            <div class="forum-post-author">
+              <div class="forum-post-author-name">${escapeHtml(opAuthor)}</div>
+              <div class="forum-post-author-stats">${nameMap[thread.author_id]?.post_count ?? 0} posts</div>
+            </div>
+            <div class="forum-post-meta" title="${fullTime(thread.created_at)}">${timeAgo(thread.created_at)}</div>
+          </header>
+          <div class="forum-post-body">${renderMarkdown(thread.body)}</div>
+        `;
+
+        // Tank snapshot
+        if (thread.tank_snapshot) {
+          renderTankSnapshot(thread.tank_snapshot);
+        }
+
+        // Replies
+        document.getElementById('repliesHeading').textContent = `Replies (${replies.length})`;
+        const repliesEl = document.getElementById('repliesList');
+        if (replies.length === 0) {
+          repliesEl.innerHTML = '<li class="text-muted">No replies yet. Be the first.</li>';
+        } else {
+          repliesEl.innerHTML = replies.map((r) => {
+            const author = nameMap[r.author_id]?.display_name || 'Someone';
+            const stats = nameMap[r.author_id]?.post_count ?? 0;
+            return `
+              <li class="forum-post forum-post-reply">
+                <header class="forum-post-head">
+                  <div class="forum-post-author">
+                    <div class="forum-post-author-name">${escapeHtml(author)}</div>
+                    <div class="forum-post-author-stats">${stats} posts</div>
+                  </div>
+                  <div class="forum-post-meta" title="${fullTime(r.created_at)}">${timeAgo(r.created_at)}</div>
+                </header>
+                <div class="forum-post-body">${renderMarkdown(r.body)}</div>
+              </li>
+            `;
+          }).join('');
+        }
+
+        // Reply controls
+        if (thread.is_locked) {
+          document.getElementById('replyLocked').style.display = 'block';
+        } else if (!user) {
+          document.getElementById('replyLoggedOut').style.display = 'block';
+        } else {
+          // Check if user has forum profile
+          const { data: prof } = await supabase
+            .from('forum_user_profiles').select('*').eq('user_id', user.id).maybeSingle();
+          myProfile = prof;
+          if (!prof) {
+            document.getElementById('replyNeedsName').style.display = 'block';
+          } else if (prof.is_banned) {
+            document.getElementById('replyLocked').innerHTML = '<p class="text-muted">Your account is suspended from posting.</p>';
+            document.getElementById('replyLocked').style.display = 'block';
+          } else {
+            document.getElementById('replyBox').style.display = 'block';
+          }
+        }
+      }
+
+      function renderTankSnapshot(snap) {
+        const livestockLine = (snap.livestock || [])
+          .map((l) => `${l.quantity}× ${escapeHtml(l.name)}`).join(', ');
+        const html = `
+          <section class="forum-tank-snapshot">
+            <h3 class="forum-tank-snapshot-head">
+              <span>🐠</span>
+              <span>${escapeHtml(snap.name)}</span>
+              ${snap.bioload_pct !== null && snap.bioload_pct !== undefined
+                ? `<span class="forum-tank-snapshot-bioload">${snap.bioload_pct}% bioload</span>` : ''}
+            </h3>
+            <div class="forum-tank-snapshot-stats">
+              ${snap.tank_type ? `<span>${escapeHtml(snap.tank_type)}</span>` : ''}
+              ${snap.volume_gallons ? `<span>${snap.volume_gallons} gal</span>` : ''}
+            </div>
+            ${livestockLine ? `<div class="forum-tank-snapshot-livestock"><strong>Livestock:</strong> ${livestockLine}</div>` : ''}
+          </section>
+        `;
+        const el = document.getElementById('threadTankSnapshot');
+        el.innerHTML = html;
+        el.style.display = '';
+      }
+
+      function showError() {
+        document.getElementById('threadLoading').style.display = 'none';
+        document.getElementById('threadError').style.display = 'block';
+      }
+      function showReplyAlert(message) {
+        const el = document.getElementById('replyAlert');
+        el.textContent = message;
+        el.className = 'alert show alert-error';
+      }
+
+      // Reply submission
+      document.getElementById('replyPostBtn').addEventListener('click', async () => {
+        const body = document.getElementById('replyBody').value.trim();
+        if (!body) { showReplyAlert('Reply cannot be empty.'); return; }
+        if (body.length > 20000) { showReplyAlert('Reply too long.'); return; }
+
+        const btn = document.getElementById('replyPostBtn');
+        btn.disabled = true;
+        btn.textContent = 'Posting…';
+
+        const { error } = await supabase.from('forum_replies').insert({
+          thread_id: currentThread.id,
+          author_id: user.id,
+          body,
+        });
+
+        btn.disabled = false;
+        btn.textContent = 'Post reply';
+
+        if (error) {
+          showReplyAlert(`Could not post: ${error.message}`);
+          return;
+        }
+        document.getElementById('replyBody').value = '';
+        // Reload to show the new reply
+        window.location.reload();
+      });
+
+      // Display name modal
+      const nameModal = document.getElementById('nameModal');
+      const nameModalAlert = document.getElementById('nameModalAlert');
+      document.getElementById('setNameBtn').addEventListener('click', () => {
+        nameModal.style.display = 'flex';
+        setTimeout(() => document.getElementById('nameInput').focus(), 50);
+      });
+      document.getElementById('nameCancelBtn').addEventListener('click', () => { nameModal.style.display = 'none'; });
+      document.getElementById('nameSaveBtn').addEventListener('click', async () => {
+        nameModalAlert.className = 'alert';
+        const name = document.getElementById('nameInput').value.trim();
+        const err = validateDisplayName(name);
+        if (err) {
+          nameModalAlert.textContent = err;
+          nameModalAlert.className = 'alert show alert-error';
+          return;
+        }
+        const btn = document.getElementById('nameSaveBtn');
+        btn.disabled = true;
+        btn.textContent = 'Saving…';
+        const { error } = await supabase.from('forum_user_profiles').insert({
+          user_id: user.id,
+          display_name: name,
+        });
+        btn.disabled = false;
+        btn.textContent = 'Save';
+        if (error) {
+          const msg = error.code === '23505' ? 'That display name is taken. Try another.' : error.message;
+          nameModalAlert.textContent = msg;
+          nameModalAlert.className = 'alert show alert-error';
+          return;
+        }
+        nameModal.style.display = 'none';
+        window.location.reload();
+      });
+
+      load();
+    </script>
+  </body>
+</html>
