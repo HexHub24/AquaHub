@@ -2531,3 +2531,32 @@ body.app-body .forum-container { margin: 0; }
   color: var(--primary-dark);
   font-weight: 700;
 }
+/* ============================================================
+   AquaHub — Forum layout fix
+   On forum pages, <main class="forum-main"> sits outside
+   <div class="app-layout"> (so logged-out users can see it).
+   When logged-in, we need the sidebar fixed-positioned and the
+   main content offset to clear it.
+   ============================================================ */
+body.app-body.forum-page-body .app-layout {
+  /* The layout container only houses the sidebar on forum pages,
+     because main is hoisted outside. Collapse it so it doesn't
+     push the main below. */
+  min-height: 0;
+}
+body.app-body.forum-page-body .app-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100dvh;
+}
+body.app-body.forum-page-body .forum-main {
+  margin-left: var(--sidebar-width);
+  padding: 32px 40px 60px;
+}
+@media (max-width: 900px) {
+  body.app-body.forum-page-body .forum-main {
+    margin-left: 0;
+    padding: 64px 18px 30px;
+  }
+}
