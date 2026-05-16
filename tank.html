@@ -330,6 +330,14 @@
             <label class="form-label" for="livestockNotes">Notes</label>
             <textarea id="livestockNotes" class="form-input" rows="2" maxlength="500" placeholder="Optional"></textarea>
           </div>
+
+          <!-- Suggest for library: only visible when custom name is selected -->
+          <div id="suggestForLibraryRow" class="suggest-library-row" style="display:none">
+            <label class="checkbox-row">
+              <input type="checkbox" id="suggestForLibraryCheck" />
+              <span>💡 Also suggest <strong id="suggestForLibraryName"></strong> for the public species library</span>
+            </label>
+          </div>
         </div>
         <div class="modal-footer">
           <div class="modal-footer-right">
@@ -2302,6 +2310,20 @@
         selectedSpecies = species;
         speciesSearchGroup.style.display = 'none';
         selectedSpeciesPanel.style.display = 'flex';
+
+        // Show "suggest for library" row only when picking a custom name
+        const suggestRow = document.getElementById('suggestForLibraryRow');
+        const suggestNameEl = document.getElementById('suggestForLibraryName');
+        const suggestCheck = document.getElementById('suggestForLibraryCheck');
+        if (species.custom) {
+          suggestRow.style.display = 'block';
+          suggestNameEl.textContent = species.name;
+          suggestCheck.checked = false;
+        } else {
+          suggestRow.style.display = 'none';
+          suggestCheck.checked = false;
+        }
+
         if (species.custom) {
           selectedSpeciesName.innerHTML = `${escapeHtml(species.name)} <span class="custom-badge">custom</span>`;
           selectedSpeciesMeta.textContent = 'Not in the library — added as a custom entry.';
@@ -2328,6 +2350,9 @@
         highlightIndex = -1;
         speciesResults.hidden = true;
         speciesHint.textContent = '↑↓ to highlight · Enter to select · or click a result';
+        // Reset suggest-for-library row
+        const suggestRow = document.getElementById('suggestForLibraryRow');
+        if (suggestRow) suggestRow.style.display = 'none';
         setTimeout(() => speciesSearch.focus(), 50);
       }
 
@@ -2511,12 +2536,28 @@
           }
         }
 
+        // If user opted to suggest the custom name for the library, fire-and-forget
+        // a species_requests insert. Don't block the success path on it.
+        const suggestCheck = document.getElementById('suggestForLibraryCheck');
+        const wantsSuggest = !!(suggestCheck && suggestCheck.checked);
+        if (wantsSuggest && selectedSpecies.custom && selectedSpecies.name) {
+          try {
+            await supabase.from('species_requests').insert({
+              user_id: user.id,
+              requested_name: selectedSpecies.name,
+              notes: `Added as custom livestock to tank "${currentTank?.name || ''}"`,
+              source: 'livestock',
+            });
+          } catch (reqErr) {
+            console.warn('Species request submit failed:', reqErr);
+            // Silent — the livestock add succeeded
+          }
+        }
+
         addSaveBtn.disabled = false; addSaveBtn.textContent = 'Add to Tank';
         closeAddModal();
         await loadLivestock();
       }
-
-      // ---- Edit modal ----
       async function openEditModal(id) {
         const item = livestock.find((x) => x.id === id);
         if (!item) return;
