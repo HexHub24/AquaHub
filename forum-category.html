@@ -28,14 +28,20 @@
 
         <div id="forumAlert" class="alert" role="alert"></div>
 
-        <div class="form-row" style="max-width: 360px; margin-bottom: 14px">
-          <div class="form-group">
+        <div class="form-row" style="max-width: 560px; margin-bottom: 14px; display: flex; gap: 16px; align-items: end;">
+          <div class="form-group" style="max-width: 240px; flex: 1;">
             <label class="form-label" for="sortSelect">Sort</label>
             <select id="sortSelect" class="form-input">
               <option value="last_reply">Newest reply</option>
               <option value="newest">Newest thread</option>
               <option value="most_replies">Most replies</option>
             </select>
+          </div>
+          <div id="mpActiveOnlyWrap" class="form-group" style="display:none; padding-bottom: 8px;">
+            <label class="mp-active-toggle">
+              <input id="mpActiveOnly" type="checkbox" checked />
+              <span>Active only (hide sold / found / traded)</span>
+            </label>
           </div>
         </div>
 
@@ -59,6 +65,12 @@
       import { supabase, getCurrentUser } from '/lib/supabase.js';
       import { mountTopNav } from '/lib/topnav.js';
       import { timeAgo, fullTime } from '/lib/forum.js';
+      import {
+        MARKETPLACE_CATEGORY_SLUG,
+        marketplacePrefix,
+        marketplacePrefixClass,
+        renderMarketplaceMetaStrip,
+      } from '/lib/marketplace.js';
 
       const params = new URLSearchParams(window.location.search);
       const slug = params.get('slug');
@@ -81,6 +93,7 @@
       let category = null;
       let currentPage = 0;
       let currentSort = 'last_reply';
+      let activeOnly = true; // marketplace default: hide resolved
 
       async function load() {
         if (!slug) { showAlert('No category specified.'); return; }
@@ -94,6 +107,11 @@
         document.getElementById('categoryDesc').textContent = catRow.description || '';
         if (user) {
           document.getElementById('newThreadCta').href = `/forum-compose.html?cat=${encodeURIComponent(slug)}`;
+        }
+
+        // Show "active only" toggle if this is the marketplace category
+        if (slug === MARKETPLACE_CATEGORY_SLUG) {
+          document.getElementById('mpActiveOnlyWrap').style.display = '';
         }
 
         await loadThreads();
@@ -110,9 +128,15 @@
 
         let query = supabase
           .from('forum_threads')
-          .select('id, title, body, created_at, last_reply_at, reply_count, author_id, last_reply_author_id, is_pinned, is_locked', { count: 'exact' })
+          .select('id, title, body, created_at, last_reply_at, reply_count, author_id, last_reply_author_id, is_pinned, is_locked, marketplace_kind, marketplace_status, marketplace_meta', { count: 'exact' })
           .eq('category_id', category.id)
           .eq('is_hidden', false);
+
+        // Marketplace: optionally hide resolved
+        if (slug === MARKETPLACE_CATEGORY_SLUG && activeOnly) {
+          // Show: status='active' OR status IS NULL (legacy pre-marketplace threads)
+          query = query.or('marketplace_status.eq.active,marketplace_status.is.null');
+        }
 
         if (currentSort === 'last_reply') {
           query = query.order('is_pinned', { ascending: false }).order('last_reply_at', { ascending: false });
@@ -150,15 +174,28 @@
           const author = nameMap[t.author_id] || 'Someone';
           const lastReplyAuthor = nameMap[t.last_reply_author_id] || author;
           const isLastReplyFromAuthor = !t.last_reply_author_id || t.last_reply_author_id === t.author_id;
+
+          // Marketplace prefix
+          const mpPrefix = marketplacePrefix(t.marketplace_kind, t.marketplace_status);
+          const mpClass = marketplacePrefixClass(t.marketplace_kind, t.marketplace_status);
+          const isResolved = t.marketplace_kind && t.marketplace_status === 'resolved';
+
+          // Marketplace meta strip (small version below title)
+          const mpMetaHtml = (t.marketplace_kind && !isResolved)
+            ? renderMarketplaceMetaStrip(t.marketplace_meta || {})
+            : '';
+
           return `
-            <li class="forum-thread-row ${t.is_pinned ? 'forum-thread-pinned' : ''}">
+            <li class="forum-thread-row ${t.is_pinned ? 'forum-thread-pinned' : ''} ${isResolved ? 'mp-resolved' : ''}">
               <a href="/forum-thread.html?id=${t.id}" class="forum-thread-link">
                 <div class="forum-thread-main">
                   <div class="forum-thread-title">
                     ${t.is_pinned ? '<span class="forum-thread-badge">📌 Pinned</span>' : ''}
-                    ${t.is_locked ? '<span class="forum-thread-badge">🔒 Locked</span>' : ''}
+                    ${t.is_locked && !isResolved ? '<span class="forum-thread-badge">🔒 Locked</span>' : ''}
+                    ${mpPrefix ? `<span class="${mpClass}">${mpPrefix}</span>` : ''}
                     ${escapeHtml(t.title)}
                   </div>
+                  ${mpMetaHtml ? `<div class="mp-meta-strip" style="margin: 6px 0 0;">${mpMetaHtml}</div>` : ''}
                   <div class="forum-thread-meta">
                     <span>by <strong>${escapeHtml(author)}</strong></span>
                     <span title="${fullTime(t.created_at)}">${timeAgo(t.created_at)}</span>
@@ -188,6 +225,11 @@
 
       document.getElementById('sortSelect').addEventListener('change', (e) => {
         currentSort = e.target.value;
+        currentPage = 0;
+        loadThreads();
+      });
+      document.getElementById('mpActiveOnly').addEventListener('change', (e) => {
+        activeOnly = e.target.checked;
         currentPage = 0;
         loadThreads();
       });
