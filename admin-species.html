@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0c4a6e" />
+    <title>Admin · Species Queue — AquaHub</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="manifest" href="/manifest.json" />
+  </head>
+  <body class="app-body">
+    <div id="topNavRoot"></div>
+    <main class="app-page">
+      <header class="app-content-head">
+        <div>
+          <h1 class="page-title">Admin · Species Queue</h1>
+          <p class="text-muted" id="adminSubtitle">Loading…</p>
+        </div>
+        <div class="admin-tabs" id="adminTabs">
+          <button class="admin-tab active" data-status="pending">Pending</button>
+          <button class="admin-tab" data-status="approved">Approved</button>
+          <button class="admin-tab" data-status="rejected">Rejected</button>
+          <button class="admin-tab" data-status="duplicate">Duplicate</button>
+        </div>
+      </header>
+
+      <div id="adminAlert" class="alert" role="alert"></div>
+
+      <div id="adminLoading" class="empty-state">Loading requests…</div>
+
+      <div id="adminEmpty" class="empty-state" style="display:none">
+        <div class="empty-icon">📭</div>
+        <h3>No requests in this view</h3>
+        <p class="text-muted">When users submit species requests they'll appear here.</p>
+      </div>
+
+      <div id="adminList" class="admin-request-list" style="display:none"></div>
+    </main>
+
+    <!-- Promote-to-library modal: a full species creation form -->
+    <div id="promoteModal" class="modal-backdrop" style="display:none">
+      <div class="modal modal-large" role="dialog" aria-modal="true" aria-labelledby="promoteTitle">
+        <div class="modal-header">
+          <h3 id="promoteTitle">Promote to library</h3>
+          <button class="modal-close" id="promoteCloseBtn" type="button" aria-label="Close">×</button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted" id="promoteContext"></p>
+
+          <form id="promoteForm" class="promote-form">
+            <input type="hidden" id="promoteRequestId" />
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="pCommonName">Common name *</label>
+                <input id="pCommonName" type="text" class="form-input" required />
+              </div>
+              <div class="form-group">
+                <label for="pScientificName">Scientific name</label>
+                <input id="pScientificName" type="text" class="form-input" placeholder="Genus species" />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="pSpeciesType">Type *</label>
+                <select id="pSpeciesType" class="form-input" required>
+                  <option value="">Choose…</option>
+                  <option value="fish">Fish</option>
+                  <option value="invertebrate">Invertebrate</option>
+                  <option value="plant">Plant</option>
+                  <option value="coral">Coral</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="pWaterType">Water *</label>
+                <select id="pWaterType" class="form-input" required>
+                  <option value="">Choose…</option>
+                  <option value="freshwater">Freshwater</option>
+                  <option value="saltwater">Saltwater</option>
+                  <option value="brackish">Brackish</option>
+                  <option value="planted">Planted (freshwater)</option>
+                  <option value="reef">Reef</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="pMinTemp">Min temp (°F)</label>
+                <input id="pMinTemp" type="number" step="0.1" class="form-input" />
+              </div>
+              <div class="form-group">
+                <label for="pMaxTemp">Max temp (°F)</label>
+                <input id="pMaxTemp" type="number" step="0.1" class="form-input" />
+              </div>
+              <div class="form-group">
+                <label for="pMinPh">Min pH</label>
+                <input id="pMinPh" type="number" step="0.1" class="form-input" />
+              </div>
+              <div class="form-group">
+                <label for="pMaxPh">Max pH</label>
+                <input id="pMaxPh" type="number" step="0.1" class="form-input" />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="pMaxNitrate">Max nitrate (ppm)</label>
+                <input id="pMaxNitrate" type="number" step="1" class="form-input" />
+              </div>
+              <div class="form-group">
+                <label for="pMinTank">Min tank size (gal)</label>
+                <input id="pMinTank" type="number" step="1" class="form-input" />
+              </div>
+              <div class="form-group">
+                <label for="pMaxSize">Adult size (in)</label>
+                <input id="pMaxSize" type="number" step="0.1" class="form-input" />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="pTemperament">Temperament</label>
+                <select id="pTemperament" class="form-input">
+                  <option value="">—</option>
+                  <option value="peaceful">Peaceful</option>
+                  <option value="semi-aggressive">Semi-aggressive</option>
+                  <option value="aggressive">Aggressive</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="pDiet">Diet</label>
+                <input id="pDiet" type="text" class="form-input" placeholder="omnivore, carnivore, herbivore…" />
+              </div>
+              <div class="form-group">
+                <label for="pCareLevel">Care level</label>
+                <select id="pCareLevel" class="form-input">
+                  <option value="">—</option>
+                  <option value="easy">Easy</option>
+                  <option value="moderate">Moderate</option>
+                  <option value="hard">Hard</option>
+                  <option value="expert">Expert</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="pAvoidWith">Avoid with</label>
+              <input id="pAvoidWith" type="text" class="form-input" placeholder="comma-separated list" />
+            </div>
+
+            <div class="form-group">
+              <label for="pCareNotes">Care notes</label>
+              <textarea id="pCareNotes" class="form-input" rows="3"></textarea>
+            </div>
+
+            <p class="text-muted text-small">
+              Leave <strong>bioload_score</strong> and <strong>nitrate_offset_per_day</strong> NULL —
+              the runtime estimator handles them. Curate them later for high-value species.
+            </p>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" id="promoteCancelBtn">Cancel</button>
+          <button type="button" class="btn-primary" id="promoteSubmitBtn">Create species & approve request</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reject modal -->
+    <div id="rejectModal" class="modal-backdrop" style="display:none">
+      <div class="modal" role="dialog" aria-modal="true">
+        <div class="modal-header">
+          <h3>Reject request</h3>
+          <button class="modal-close" id="rejectCloseBtn" type="button">×</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="rejectRequestId" />
+          <div class="form-group">
+            <label for="rejectReason">Reason (optional, shown to no one but you)</label>
+            <textarea id="rejectReason" class="form-input" rows="3"
+              placeholder="e.g. not a real species, joke, duplicate of an existing request..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" id="rejectCancelBtn">Cancel</button>
+          <button type="button" class="btn-danger" id="rejectSubmitBtn">Reject</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Duplicate / link-to-existing modal -->
+    <div id="duplicateModal" class="modal-backdrop" style="display:none">
+      <div class="modal" role="dialog" aria-modal="true">
+        <div class="modal-header">
+          <h3>Mark as duplicate</h3>
+          <button class="modal-close" id="duplicateCloseBtn" type="button">×</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="duplicateRequestId" />
+          <div class="form-group">
+            <label for="duplicateSearch">Existing species in the library</label>
+            <input id="duplicateSearch" type="search" class="form-input"
+              placeholder="Search by common or scientific name…" autocomplete="off" />
+            <div id="duplicateResults" class="duplicate-search-results"></div>
+          </div>
+          <p class="text-muted text-small">
+            Linking marks the request as resolved and points the requester at the existing species.
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" id="duplicateCancelBtn">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      import { supabase, requireAuth } from '/lib/supabase.js';
+      import { mountTopNav } from '/lib/topnav.js';
+
+      const user = await requireAuth();
+      await mountTopNav('admin');
+      if (!user) throw new Error('not authenticated');
+
+      // ---- Admin guard ----
+      const { data: { session } } = await supabase.auth.getSession();
+      const isAdmin = session?.user?.app_metadata?.is_admin === true;
+      if (!isAdmin) {
+        // Not admin — bounce them out
+        window.location.href = '/app.html';
+        throw new Error('not admin');
+      }
+
+      // ---- State ----
+      let currentStatus = 'pending';
+      let requests = [];
+
+      // ---- DOM refs ----
+      const subtitle = document.getElementById('adminSubtitle');
+      const tabs = document.getElementById('adminTabs');
+      const loading = document.getElementById('adminLoading');
+      const empty = document.getElementById('adminEmpty');
+      const list = document.getElementById('adminList');
+      const alertEl = document.getElementById('adminAlert');
+
+      const promoteModal = document.getElementById('promoteModal');
+      const promoteContext = document.getElementById('promoteContext');
+      const rejectModal = document.getElementById('rejectModal');
+      const duplicateModal = document.getElementById('duplicateModal');
+
+      // ---- Helpers ----
+      function escapeHtml(s) {
+        if (s === null || s === undefined) return '';
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+      }
+      function showAlert(msg, type = 'error') {
+        alertEl.textContent = msg;
+        alertEl.className = `alert show alert-${type}`;
+        setTimeout(() => { alertEl.className = 'alert'; }, 4000);
+      }
+      function formatDate(s) {
+        if (!s) return '—';
+        const d = new Date(s);
+        return d.toLocaleString();
+      }
+
+      // ---- Load ----
+      async function loadRequests() {
+        loading.style.display = 'block';
+        list.style.display = 'none';
+        empty.style.display = 'none';
+
+        const { data, error } = await supabase
+          .from('species_requests')
+          .select('*')
+          .eq('status', currentStatus)
+          .order('created_at', { ascending: false });
+
+        loading.style.display = 'none';
+
+        if (error) {
+          showAlert(`Failed to load: ${error.message}`);
+          return;
+        }
+        requests = data || [];
+        subtitle.textContent = `${requests.length} ${currentStatus} request${requests.length === 1 ? '' : 's'}`;
+
+        if (requests.length === 0) {
+          empty.style.display = 'block';
+          return;
+        }
+        list.style.display = 'block';
+        renderList();
+      }
+
+      function renderList() {
+        list.innerHTML = requests.map((r) => {
+          const actions = currentStatus === 'pending' ? `
+            <div class="admin-request-actions">
+              <button class="btn-primary btn-inline" data-action="promote" data-id="${r.id}">Promote to library</button>
+              <button class="btn-secondary btn-inline" data-action="duplicate" data-id="${r.id}">Mark duplicate</button>
+              <button class="btn-secondary btn-inline" data-action="reject" data-id="${r.id}">Reject</button>
+            </div>
+          ` : `
+            <div class="admin-request-meta-row">
+              ${r.resolved_at ? `<span class="text-muted text-small">Resolved ${formatDate(r.resolved_at)}</span>` : ''}
+              ${r.resolved_species_id ? `<a href="/species.html" class="text-small">View species →</a>` : ''}
+            </div>
+          `;
+
+          return `
+            <div class="admin-request-row" data-id="${r.id}">
+              <div class="admin-request-name">${escapeHtml(r.requested_name)}</div>
+              <div class="admin-request-meta">
+                <span>${escapeHtml(r.source || 'unknown')}</span> ·
+                <span>${formatDate(r.created_at)}</span>
+              </div>
+              ${r.notes ? `<div class="admin-request-notes">${escapeHtml(r.notes)}</div>` : ''}
+              ${r.admin_notes ? `<div class="admin-request-admin-notes"><strong>Admin notes:</strong> ${escapeHtml(r.admin_notes)}</div>` : ''}
+              ${actions}
+            </div>
+          `;
+        }).join('');
+
+        // Wire actions
+        list.querySelectorAll('button[data-action]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const action = btn.dataset.action;
+            const id = Number(btn.dataset.id);
+            if (action === 'promote') openPromoteModal(id);
+            else if (action === 'reject') openRejectModal(id);
+            else if (action === 'duplicate') openDuplicateModal(id);
+          });
+        });
+      }
+
+      // ---- Tabs ----
+      tabs.querySelectorAll('.admin-tab').forEach((tab) => {
+        tab.addEventListener('click', () => {
+          tabs.querySelectorAll('.admin-tab').forEach((t) => t.classList.remove('active'));
+          tab.classList.add('active');
+          currentStatus = tab.dataset.status;
+          loadRequests();
+        });
+      });
+
+      // ============================================================
+      // Promote to library
+      // ============================================================
+      function openPromoteModal(requestId) {
+        const r = requests.find((x) => x.id === requestId);
+        if (!r) return;
+        document.getElementById('promoteRequestId').value = String(requestId);
+        document.getElementById('pCommonName').value = r.requested_name || '';
+        promoteContext.textContent = r.notes
+          ? `Requester's note: "${r.notes}"`
+          : 'No additional notes from requester.';
+        // Clear all other fields
+        ['pScientificName','pSpeciesType','pWaterType','pMinTemp','pMaxTemp',
+         'pMinPh','pMaxPh','pMaxNitrate','pMinTank','pMaxSize',
+         'pTemperament','pDiet','pCareLevel','pAvoidWith','pCareNotes'].forEach((id) => {
+          document.getElementById(id).value = '';
+        });
+        promoteModal.style.display = 'flex';
+      }
+
+      function closePromoteModal() { promoteModal.style.display = 'none'; }
+
+      document.getElementById('promoteCloseBtn').addEventListener('click', closePromoteModal);
+      document.getElementById('promoteCancelBtn').addEventListener('click', closePromoteModal);
+
+      document.getElementById('promoteSubmitBtn').addEventListener('click', async () => {
+        const requestId = Number(document.getElementById('promoteRequestId').value);
+        const common = document.getElementById('pCommonName').value.trim();
+        const speciesType = document.getElementById('pSpeciesType').value;
+        const waterType = document.getElementById('pWaterType').value;
+        if (!common || !speciesType || !waterType) {
+          showAlert('Common name, type, and water are required.');
+          return;
+        }
+
+        const get = (id) => {
+          const v = document.getElementById(id).value.trim();
+          return v === '' ? null : v;
+        };
+        const num = (id) => {
+          const v = get(id);
+          return v === null ? null : Number(v);
+        };
+
+        const newSpecies = {
+          common_name: common,
+          scientific_name: get('pScientificName'),
+          species_type: speciesType,
+          water_type: waterType,
+          min_temp: num('pMinTemp'),
+          max_temp: num('pMaxTemp'),
+          min_ph: num('pMinPh'),
+          max_ph: num('pMaxPh'),
+          max_nitrate: num('pMaxNitrate'),
+          min_tank_gallons: num('pMinTank'),
+          max_size_inches: num('pMaxSize'),
+          temperament: get('pTemperament'),
+          diet: get('pDiet'),
+          care_level: get('pCareLevel'),
+          avoid_with: get('pAvoidWith'),
+          care_notes: get('pCareNotes'),
+        };
+
+        // Insert species
+        const { data: speciesRow, error: insertErr } = await supabase
+          .from('species').insert(newSpecies).select().single();
+
+        if (insertErr) {
+          showAlert(`Could not create species: ${insertErr.message}`);
+          return;
+        }
+
+        // Mark request approved + link
+        const { error: updateErr } = await supabase
+          .from('species_requests')
+          .update({
+            status: 'approved',
+            resolved_species_id: speciesRow.id,
+            resolved_at: new Date().toISOString(),
+          })
+          .eq('id', requestId);
+
+        if (updateErr) {
+          showAlert(`Species created but request not marked resolved: ${updateErr.message}`, 'warning');
+        } else {
+          showAlert(`Added "${common}" to the library.`, 'success');
+        }
+        closePromoteModal();
+        await loadRequests();
+      });
+
+      // ============================================================
+      // Reject
+      // ============================================================
+      function openRejectModal(requestId) {
+        document.getElementById('rejectRequestId').value = String(requestId);
+        document.getElementById('rejectReason').value = '';
+        rejectModal.style.display = 'flex';
+      }
+      function closeRejectModal() { rejectModal.style.display = 'none'; }
+
+      document.getElementById('rejectCloseBtn').addEventListener('click', closeRejectModal);
+      document.getElementById('rejectCancelBtn').addEventListener('click', closeRejectModal);
+
+      document.getElementById('rejectSubmitBtn').addEventListener('click', async () => {
+        const id = Number(document.getElementById('rejectRequestId').value);
+        const reason = document.getElementById('rejectReason').value.trim() || null;
+        const { error } = await supabase
+          .from('species_requests')
+          .update({
+            status: 'rejected',
+            admin_notes: reason,
+            resolved_at: new Date().toISOString(),
+          })
+          .eq('id', id);
+        if (error) {
+          showAlert(`Failed: ${error.message}`);
+          return;
+        }
+        closeRejectModal();
+        await loadRequests();
+      });
+
+      // ============================================================
+      // Duplicate
+      // ============================================================
+      const dupSearch = document.getElementById('duplicateSearch');
+      const dupResults = document.getElementById('duplicateResults');
+      let dupTimeout;
+
+      function openDuplicateModal(requestId) {
+        document.getElementById('duplicateRequestId').value = String(requestId);
+        dupSearch.value = '';
+        dupResults.innerHTML = '';
+        const r = requests.find((x) => x.id === requestId);
+        if (r) dupSearch.value = r.requested_name;
+        duplicateModal.style.display = 'flex';
+        dupSearch.focus();
+        runDupSearch();
+      }
+      function closeDuplicateModal() { duplicateModal.style.display = 'none'; }
+      document.getElementById('duplicateCloseBtn').addEventListener('click', closeDuplicateModal);
+      document.getElementById('duplicateCancelBtn').addEventListener('click', closeDuplicateModal);
+
+      dupSearch.addEventListener('input', () => {
+        clearTimeout(dupTimeout);
+        dupTimeout = setTimeout(runDupSearch, 200);
+      });
+
+      async function runDupSearch() {
+        const q = dupSearch.value.trim();
+        if (q.length < 2) { dupResults.innerHTML = ''; return; }
+        const { data, error } = await supabase
+          .from('species').select('id, common_name, scientific_name, species_type')
+          .or(`common_name.ilike.%${q}%,scientific_name.ilike.%${q}%`)
+          .order('common_name').limit(20);
+        if (error) {
+          dupResults.innerHTML = `<div class="text-muted">Search failed: ${escapeHtml(error.message)}</div>`;
+          return;
+        }
+        if (!data || data.length === 0) {
+          dupResults.innerHTML = `<div class="text-muted">No matches.</div>`;
+          return;
+        }
+        dupResults.innerHTML = data.map((s) => `
+          <button type="button" class="duplicate-result-row" data-species-id="${s.id}">
+            <strong>${escapeHtml(s.common_name)}</strong>
+            ${s.scientific_name ? `<span class="text-muted"> · ${escapeHtml(s.scientific_name)}</span>` : ''}
+            <span class="text-small text-muted"> · ${escapeHtml(s.species_type)}</span>
+          </button>
+        `).join('');
+        dupResults.querySelectorAll('.duplicate-result-row').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            const speciesId = Number(btn.dataset.speciesId);
+            const requestId = Number(document.getElementById('duplicateRequestId').value);
+            const { error: upErr } = await supabase
+              .from('species_requests')
+              .update({
+                status: 'duplicate',
+                resolved_species_id: speciesId,
+                resolved_at: new Date().toISOString(),
+              })
+              .eq('id', requestId);
+            if (upErr) {
+              showAlert(`Failed: ${upErr.message}`);
+              return;
+            }
+            showAlert('Linked.', 'success');
+            closeDuplicateModal();
+            await loadRequests();
+          });
+        });
+      }
+
+      // ---- Escape key ----
+      document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        if (promoteModal.style.display !== 'none') closePromoteModal();
+        else if (rejectModal.style.display !== 'none') closeRejectModal();
+        else if (duplicateModal.style.display !== 'none') closeDuplicateModal();
+      });
+
+      // ---- Boot ----
+      loadRequests();
+    </script>
+  </body>
+</html>
