@@ -2941,3 +2941,163 @@ body.app-body.forum-page-body .forum-main {
   opacity: 0.6;
   cursor: wait;
 }
+/* ============================================================
+   OPTIONAL CSS for the new UI bits (append to styles.css)
+   ============================================================ */
+ 
+
+.empty-state-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+ 
+.suggest-library-row {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--bg, #f0f9ff);
+  border-radius: 8px;
+  border: 1px dashed var(--border, #e2e8f0);
+}
+ 
+.checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text, #0f172a);
+}
+ 
+.checkbox-row input[type="checkbox"] {
+  margin-top: 2px;
+  cursor: pointer;
+}
+ 
+.user-dropdown-admin {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  font-weight: 500;
+}
+ 
+.admin-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--bg, #f0f9ff);
+  padding: 4px;
+  border-radius: 10px;
+}
+ 
+.admin-tab {
+  background: transparent;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 7px;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--text-muted, #64748b);
+  font-weight: 500;
+}
+ 
+.admin-tab:hover {
+  color: var(--text, #0f172a);
+}
+ 
+.admin-tab.active {
+  background: var(--surface, #fff);
+  color: var(--text, #0f172a);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+ 
+.admin-request-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+ 
+.admin-request-row {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  padding: 16px;
+}
+ 
+.admin-request-name {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text, #0f172a);
+  margin-bottom: 4px;
+}
+ 
+.admin-request-meta {
+  font-size: 13px;
+  color: var(--text-muted, #64748b);
+  margin-bottom: 8px;
+}
+ 
+.admin-request-notes {
+  background: var(--bg, #f0f9ff);
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin: 8px 0;
+  font-size: 14px;
+  color: var(--text, #0f172a);
+}
+ 
+.admin-request-admin-notes {
+  font-size: 13px;
+  color: var(--text-muted, #64748b);
+  margin: 8px 0;
+  font-style: italic;
+}
+ 
+.admin-request-meta-row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-top: 8px;
+}
+ 
+.admin-request-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+ 
+.promote-form .form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+ 
+.duplicate-search-results {
+  margin-top: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+}
+ 
+.duplicate-result-row {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text, #0f172a);
+}
+ 
+.duplicate-result-row:hover {
+  background: var(--bg, #f0f9ff);
+}
+ 
+.duplicate-result-row:last-child {
+  border-bottom: none;
+}
+ 
+.text-small { font-size: 13px; }
