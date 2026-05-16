@@ -41,7 +41,12 @@
           <div class="empty-icon">🔍</div>
           <h3>No matches</h3>
           <p class="text-muted">Try clearing some filters or changing your search.</p>
-          <button id="clearAllBtn" class="btn-secondary btn-inline" type="button">Clear all filters</button>
+          <div class="empty-state-actions">
+            <button id="clearAllBtn" class="btn-secondary btn-inline" type="button">Clear all filters</button>
+            <button id="requestSpeciesBtn" class="btn-primary btn-inline" type="button">
+              💡 Request this species
+            </button>
+          </div>
         </div>
 
         <div id="speciesGrid" class="species-grid" style="display: none"></div>
@@ -124,6 +129,36 @@
         </div>
         <div class="modal-body" id="speciesDetailBody">
           Loading…
+        </div>
+      </div>
+    </div>
+
+    <!-- Request Species Modal -->
+    <div id="requestModal" class="modal-backdrop" style="display: none">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="requestTitle">
+        <div class="modal-header">
+          <h3 id="requestTitle">Request a species</h3>
+          <button class="modal-close" id="requestCloseBtn" type="button" aria-label="Close">×</button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted text-small" style="margin-bottom: 12px;">
+            We'll review your request and add it to the library if it's a good fit.
+          </p>
+          <div class="form-group">
+            <label for="requestName">Species name *</label>
+            <input id="requestName" type="text" class="form-input"
+              placeholder="Common or scientific name" required />
+          </div>
+          <div class="form-group">
+            <label for="requestNotes">Notes (optional)</label>
+            <textarea id="requestNotes" class="form-input" rows="3"
+              placeholder="What it is, where you keep it, anything that helps us add the right care data..."></textarea>
+          </div>
+          <div id="requestAlert" class="alert" role="alert"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" id="requestCancelBtn">Cancel</button>
+          <button type="button" class="btn-primary" id="requestSubmitBtn">Submit request</button>
         </div>
       </div>
     </div>
@@ -456,14 +491,69 @@
       document.getElementById('speciesDetailCloseBtn').addEventListener('click', closeDetail);
       detailModal.addEventListener('click', (e) => { if (e.target === detailModal) closeDetail(); });
 
+      // ---- Request modal refs (declared early so the Escape handler can see them) ----
+      const requestModal = document.getElementById('requestModal');
+      const requestName = document.getElementById('requestName');
+      const requestNotes = document.getElementById('requestNotes');
+      const requestAlert = document.getElementById('requestAlert');
+
       document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
           if (detailModal.style.display !== 'none') closeDetail();
+          else if (requestModal.style.display !== 'none') closeRequestModal();
           else if (filterPanel.classList.contains('open')) closeFilterPanel();
         }
       });
 
       // ---- Sidebar (mobile) ----
+
+      // ---- Request a species ----
+      function openRequestModal() {
+        // Pre-fill with current search query if there is one
+        requestName.value = filters.search.trim() || '';
+        requestNotes.value = '';
+        requestAlert.className = 'alert';
+        requestAlert.textContent = '';
+        requestModal.style.display = 'flex';
+        setTimeout(() => requestName.focus(), 50);
+      }
+      function closeRequestModal() { requestModal.style.display = 'none'; }
+
+      document.getElementById('requestSpeciesBtn').addEventListener('click', openRequestModal);
+      document.getElementById('requestCloseBtn').addEventListener('click', closeRequestModal);
+      document.getElementById('requestCancelBtn').addEventListener('click', closeRequestModal);
+      requestModal.addEventListener('click', (e) => { if (e.target === requestModal) closeRequestModal(); });
+
+      document.getElementById('requestSubmitBtn').addEventListener('click', async () => {
+        const name = requestName.value.trim();
+        if (!name) {
+          requestAlert.textContent = 'Please enter a species name.';
+          requestAlert.className = 'alert show alert-error';
+          return;
+        }
+        const submitBtn = document.getElementById('requestSubmitBtn');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Submitting…';
+
+        const { error } = await supabase.from('species_requests').insert({
+          user_id: user.id,
+          requested_name: name,
+          notes: requestNotes.value.trim() || null,
+          source: 'search',
+        });
+
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit request';
+
+        if (error) {
+          requestAlert.textContent = `Failed: ${error.message}`;
+          requestAlert.className = 'alert show alert-error';
+          return;
+        }
+        requestAlert.textContent = `Thanks! We'll review "${name}" and add it if it's a good fit.`;
+        requestAlert.className = 'alert show alert-success';
+        setTimeout(closeRequestModal, 1800);
+      });
 
       // ---- Boot ----
       loadSpecies();
