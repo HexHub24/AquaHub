@@ -35,6 +35,10 @@
           <!-- OP -->
           <section class="forum-post forum-post-op" id="threadOp"></section>
 
+          <!-- Marketplace meta strip + resolve bar (rendered when applicable) -->
+          <section id="mpMetaSection" style="display: none"></section>
+          <section id="mpResolveSection" style="display: none"></section>
+
           <!-- Tank snapshot -->
           <section id="threadTankSnapshot" style="display: none"></section>
 
@@ -113,6 +117,13 @@
       import { mountTopNav } from '/lib/topnav.js';
       import { renderMarkdown, timeAgo, fullTime, validateDisplayName } from '/lib/forum.js';
       import { pickAndUploadForumImage } from '/lib/forum-upload.js';
+      import {
+        MARKETPLACE_KINDS,
+        getMarketplaceKind,
+        marketplacePrefix,
+        marketplacePrefixClass,
+        renderMarketplaceMetaStrip,
+      } from '/lib/marketplace.js';
 
       const params = new URLSearchParams(window.location.search);
       const threadId = params.get('id');
@@ -166,12 +177,20 @@
           catLink.innerHTML = ` · <a href="/forum-category.html?slug=${encodeURIComponent(category.slug)}">${escapeHtml(category.name)}</a>`;
         }
 
-        document.getElementById('threadTitle').textContent = thread.title;
+        // Title with marketplace prefix (if applicable)
+        const titleEl = document.getElementById('threadTitle');
+        const mpPrefix = marketplacePrefix(thread.marketplace_kind, thread.marketplace_status);
+        const mpClass = marketplacePrefixClass(thread.marketplace_kind, thread.marketplace_status);
+        if (mpPrefix) {
+          titleEl.innerHTML = `<span class="${mpClass}">${mpPrefix}</span> ${escapeHtml(thread.title)}`;
+        } else {
+          titleEl.textContent = thread.title;
+        }
         const opAuthor = nameMap[thread.author_id]?.display_name || 'Someone';
         document.getElementById('threadHeaderMeta').innerHTML = `
           <span>by <strong>${escapeHtml(opAuthor)}</strong></span>
           <span title="${fullTime(thread.created_at)}">${timeAgo(thread.created_at)}</span>
-          ${thread.is_locked ? '<span class="forum-thread-badge">🔒 Locked</span>' : ''}
+          ${thread.is_locked && !(thread.marketplace_kind && thread.marketplace_status === 'resolved') ? '<span class="forum-thread-badge">🔒 Locked</span>' : ''}
           ${thread.is_pinned ? '<span class="forum-thread-badge">📌 Pinned</span>' : ''}
         `;
 
@@ -186,6 +205,9 @@
           </header>
           <div class="forum-post-body">${renderMarkdown(thread.body)}</div>
         `;
+
+        // Marketplace meta + resolve bar / banner
+        renderMarketplaceSections(thread);
 
         // Tank snapshot
         if (thread.tank_snapshot) {
@@ -235,6 +257,61 @@
             document.getElementById('replyBox').style.display = 'block';
             wireReplyToolbar();
           }
+        }
+      }
+
+      function renderMarketplaceSections(thread) {
+        if (!thread.marketplace_kind) return;
+
+        const kindCfg = getMarketplaceKind(thread.marketplace_kind);
+        const isResolved = thread.marketplace_status === 'resolved';
+        const isOp = user && user.id === thread.author_id;
+
+        // 1. Meta strip — show price/location/ship if any are populated (and not resolved)
+        const metaEl = document.getElementById('mpMetaSection');
+        if (!isResolved) {
+          const stripHtml = renderMarketplaceMetaStrip(thread.marketplace_meta || {});
+          if (stripHtml) {
+            metaEl.innerHTML = `<div class="mp-meta-strip">${stripHtml}</div>`;
+            metaEl.style.display = 'block';
+          }
+        }
+
+        // 2. Resolve bar (OP only, active) OR resolved banner (everyone, resolved)
+        const resolveEl = document.getElementById('mpResolveSection');
+        if (isResolved) {
+          resolveEl.innerHTML = `
+            <div class="mp-resolved-banner">
+              <span>✓ This listing has been marked as <strong>${escapeHtml(kindCfg.resolvedLabel)}</strong>. Replies are closed.</span>
+            </div>
+          `;
+          resolveEl.style.display = 'block';
+        } else if (isOp) {
+          resolveEl.innerHTML = `
+            <div class="mp-resolve-bar">
+              <span>Done with this listing?</span>
+              <button id="mpResolveBtn" class="btn-primary btn-inline" type="button">${escapeHtml(kindCfg.resolveVerb)}</button>
+            </div>
+          `;
+          resolveEl.style.display = 'block';
+          document.getElementById('mpResolveBtn').addEventListener('click', async () => {
+            const verb = kindCfg.resolvedLabel.toLowerCase();
+            if (!confirm(`Mark this listing as ${verb}? This will lock replies on the thread.`)) return;
+            const btn = document.getElementById('mpResolveBtn');
+            btn.disabled = true;
+            btn.textContent = 'Updating…';
+            const { error } = await supabase.from('forum_threads')
+              .update({ marketplace_status: 'resolved', is_locked: true })
+              .eq('id', thread.id);
+            if (error) {
+              alert(`Failed: ${error.message}`);
+              btn.disabled = false;
+              btn.textContent = kindCfg.resolveVerb;
+              return;
+            }
+            // Reload the page so the title/banner reflect the new state
+            window.location.reload();
+          });
         }
       }
 
