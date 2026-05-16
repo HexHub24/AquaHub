@@ -45,10 +45,36 @@
             <select id="threadCategory" class="form-input"></select>
           </div>
 
+          <!-- Marketplace-only fields: shown when category = marketplace -->
+          <div id="marketplaceSection" class="mp-compose-section" style="display:none">
+            <div class="mp-compose-section-header">Marketplace details</div>
+
+            <div class="form-group">
+              <label class="form-label">What kind of post is this? *</label>
+              <div class="mp-compose-kind-options" id="mpKindOptions"></div>
+              <input type="hidden" id="mpKind" value="" />
+            </div>
+
+            <div class="mp-compose-fields-row">
+              <div class="form-group">
+                <label class="form-label" for="mpPrice">Price (USD)</label>
+                <input id="mpPrice" type="number" min="0" step="0.01" class="form-input" placeholder="optional" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="mpLocation">Location</label>
+                <input id="mpLocation" type="text" class="form-input" maxlength="60" placeholder="e.g. Seattle, WA or PNW" />
+              </div>
+              <label class="mp-ship-checkbox">
+                <input id="mpWillingShip" type="checkbox" />
+                <span>📦 Will ship</span>
+              </label>
+            </div>
+          </div>
+
           <div class="form-group">
             <label class="form-label" for="threadTitle">Title *</label>
             <input id="threadTitle" type="text" class="form-input" minlength="4" maxlength="140" placeholder="A clear, specific title gets more replies" />
-            <p class="form-hint">4–140 characters.</p>
+            <p class="form-hint">4–140 characters. (The marketplace prefix like [WTS] is added automatically — don't include it.)</p>
           </div>
 
           <div class="form-group">
@@ -94,6 +120,11 @@
       import { renderMarkdown, validateDisplayName, titleProfanityCheck, buildTankSnapshot } from '/lib/forum.js';
       import { pickAndUploadForumImage } from '/lib/forum-upload.js';
       import { computeBioload } from '/lib/bioload.js';
+      import {
+        MARKETPLACE_CATEGORY_SLUG,
+        MARKETPLACE_KINDS,
+        validateMarketplaceFields,
+      } from '/lib/marketplace.js';
 
       const user = await requireAuth();
       await mountTopNav('forum');
@@ -176,6 +207,45 @@
           (tanks || []).map((t) =>
             `<option value="${t.id}">${escapeHtml(t.name)} (${t.volume_gallons || '?'}g ${escapeHtml(t.tank_type || '')})</option>`
           ).join('');
+
+        // ---- Marketplace fields: render kind picker, toggle section visibility ----
+        const mpSection = document.getElementById('marketplaceSection');
+        const mpKindOptions = document.getElementById('mpKindOptions');
+        const mpKindHidden = document.getElementById('mpKind');
+
+        // Render the 4 kind buttons once
+        mpKindOptions.innerHTML = MARKETPLACE_KINDS.map((k) => `
+          <button type="button" class="mp-kind-option" data-kind="${k.code}">
+            <strong>${escapeHtml(k.label)}</strong>
+            <span class="mp-kind-helper">${escapeHtml(k.helper)}</span>
+          </button>
+        `).join('');
+
+        mpKindOptions.querySelectorAll('[data-kind]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            mpKindOptions.querySelectorAll('[data-kind]').forEach((b) => b.classList.remove('active'));
+            btn.classList.add('active');
+            mpKindHidden.value = btn.dataset.kind;
+          });
+        });
+
+        function syncMarketplaceVisibility() {
+          const opt = catSelect.options[catSelect.selectedIndex];
+          const slug = opt?.dataset?.slug;
+          if (slug === MARKETPLACE_CATEGORY_SLUG) {
+            mpSection.style.display = 'block';
+          } else {
+            mpSection.style.display = 'none';
+            mpKindHidden.value = '';
+            mpKindOptions.querySelectorAll('[data-kind]').forEach((b) => b.classList.remove('active'));
+            document.getElementById('mpPrice').value = '';
+            document.getElementById('mpLocation').value = '';
+            document.getElementById('mpWillingShip').checked = false;
+          }
+        }
+        catSelect.addEventListener('change', syncMarketplaceVisibility);
+        // Initial sync (handles ?cat=marketplace preselect)
+        syncMarketplaceVisibility();
 
         // Tank preview when one is selected
         tankSelect.addEventListener('change', async () => {
@@ -315,7 +385,9 @@
 
       async function submitThread() {
         clearAlert('composeAlert');
-        const categoryId = document.getElementById('threadCategory').value;
+        const catSel = document.getElementById('threadCategory');
+        const categoryId = catSel.value;
+        const categorySlug = catSel.options[catSel.selectedIndex]?.dataset?.slug;
         const title = document.getElementById('threadTitle').value.trim();
         const body = document.getElementById('threadBody').value.trim();
 
@@ -327,6 +399,25 @@
 
         const slur = titleProfanityCheck(title);
         if (slur) { showAlert('composeAlert', `Please reword your title — "${slur}" isn't allowed.`); return; }
+
+        // Collect marketplace fields if this is a marketplace post
+        let mpKind = null;
+        let mpStatus = null;
+        let mpMeta = null;
+        if (categorySlug === MARKETPLACE_CATEGORY_SLUG) {
+          mpKind = document.getElementById('mpKind').value || null;
+          const priceVal = document.getElementById('mpPrice').value.trim();
+          const locationVal = document.getElementById('mpLocation').value.trim();
+          const willShip = document.getElementById('mpWillingShip').checked;
+          mpMeta = {};
+          if (priceVal !== '') mpMeta.price = Number(priceVal);
+          if (locationVal !== '') mpMeta.location = locationVal;
+          mpMeta.willing_to_ship = willShip;
+
+          const v = validateMarketplaceFields({ categorySlug, kind: mpKind, meta: mpMeta });
+          if (!v.valid) { showAlert('composeAlert', v.error); return; }
+          mpStatus = 'active';
+        }
 
         // Rate limit: max 3 threads/hour for accounts <24h old (handled client-side as a soft check)
         const userAgeMs = Date.now() - new Date(user.created_at || user.confirmed_at || 0).getTime();
@@ -348,15 +439,22 @@
         btn.disabled = true;
         btn.textContent = 'Posting…';
 
+        const insertPayload = {
+          category_id: categoryId,
+          author_id: user.id,
+          title,
+          body,
+          tank_snapshot: snapshot,
+        };
+        if (mpKind) {
+          insertPayload.marketplace_kind = mpKind;
+          insertPayload.marketplace_status = mpStatus;
+          insertPayload.marketplace_meta = mpMeta;
+        }
+
         const { data, error } = await supabase
           .from('forum_threads')
-          .insert({
-            category_id: categoryId,
-            author_id: user.id,
-            title,
-            body,
-            tank_snapshot: snapshot,
-          })
+          .insert(insertPayload)
           .select()
           .maybeSingle();
 
