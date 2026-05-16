@@ -3101,3 +3101,223 @@ body.app-body.forum-page-body .forum-main {
 }
  
 .text-small { font-size: 13px; }
+/* ============================================================
+   AquaHub — Marketplace styles
+   Append to styles.css
+   ============================================================ */
+
+/* Title prefix badge (used in thread headers + category list) */
+.mp-prefix {
+  display: inline-block;
+  font-size: 0.75em;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-right: 8px;
+  vertical-align: middle;
+  text-transform: uppercase;
+}
+
+/* Selling intent — blue/teal */
+.mp-prefix-sell {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
+/* Want to buy — orange */
+.mp-prefix-wtb {
+  background: #fed7aa;
+  color: #9a3412;
+  border: 1px solid #fdba74;
+}
+
+/* For trade — purple */
+.mp-prefix-ft {
+  background: #ede9fe;
+  color: #5b21b6;
+  border: 1px solid #ddd6fe;
+}
+
+/* Resolved (SOLD/FOUND/TRADED) — muted gray */
+.mp-prefix-resolved {
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #cbd5e1;
+}
+
+/* Resolved thread titles get gray + slight strikethrough cue */
+.thread-row.mp-resolved .thread-row-title,
+.thread-row.mp-resolved {
+  opacity: 0.7;
+}
+
+/* ============================================================
+   Marketplace meta strip
+   Used on forum-thread.html above the OP body, and optionally
+   on forum-category.html under each thread row.
+   ============================================================ */
+
+.mp-meta-strip {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  background: var(--bg, #f0f9ff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  margin: 8px 0 16px;
+  font-size: 14px;
+  color: var(--text, #0f172a);
+}
+
+.mp-meta-strip span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mp-meta-price {
+  font-weight: 600;
+  color: #047857;
+}
+
+.mp-meta-location {
+  color: var(--text-muted, #64748b);
+}
+
+.mp-meta-ship {
+  color: #1e40af;
+}
+
+.mp-meta-ship-no {
+  color: var(--text-muted, #64748b);
+}
+
+/* ============================================================
+   Compose form: marketplace fields section
+   Hidden by default; shown when category = marketplace
+   ============================================================ */
+
+.mp-compose-section {
+  background: var(--bg, #f0f9ff);
+  border: 1px dashed var(--border, #e2e8f0);
+  border-radius: 10px;
+  padding: 14px;
+  margin: 12px 0;
+}
+
+.mp-compose-section-header {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text, #0f172a);
+  margin-bottom: 10px;
+}
+
+.mp-compose-kind-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.mp-kind-option {
+  background: var(--surface, #fff);
+  border: 1.5px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.mp-kind-option:hover {
+  border-color: var(--primary, #0ea5e9);
+}
+
+.mp-kind-option.active {
+  border-color: var(--primary, #0ea5e9);
+  background: #f0f9ff;
+}
+
+.mp-kind-option strong {
+  font-size: 14px;
+  color: var(--text, #0f172a);
+}
+
+.mp-kind-option .mp-kind-helper {
+  font-size: 12px;
+  color: var(--text-muted, #64748b);
+}
+
+.mp-compose-fields-row {
+  display: grid;
+  grid-template-columns: 120px 1fr auto;
+  gap: 10px;
+  margin-top: 10px;
+  align-items: end;
+}
+
+@media (max-width: 600px) {
+  .mp-compose-fields-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mp-ship-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--text, #0f172a);
+  padding-bottom: 8px;
+}
+
+/* ============================================================
+   Category page: active-only toggle + resolved state
+   ============================================================ */
+
+.mp-active-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--text-muted, #64748b);
+  margin-left: 12px;
+  cursor: pointer;
+}
+
+.mp-active-toggle input[type="checkbox"] {
+  cursor: pointer;
+}
+
+/* ============================================================
+   Thread page: "Mark as sold/found/traded" + locked banner
+   ============================================================ */
+
+.mp-resolve-bar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin: 12px 0;
+  padding: 10px 14px;
+  background: var(--bg, #f0f9ff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+}
+
+.mp-resolved-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  margin: 12px 0;
+  color: #475569;
+  font-weight: 500;
+}
