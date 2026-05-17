@@ -3541,3 +3541,124 @@ body.app-body.forum-page-body .forum-main {
   color: #475569;
   font-weight: 500;
 }
+/* ============================================================
+   AquaHub — Forum category restructure (Phase 5d) additions
+   APPEND to bottom of styles.css
+   ============================================================ */
+
+/* ---------- Sectioned forum homepage ---------- */
+.forum-section-block {
+  margin-bottom: 28px;
+}
+
+.forum-section-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0 10px;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 10px;
+}
+
+.forum-section-head h3 {
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin: 0;
+}
+
+.forum-section-icon {
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.forum-subcategory-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.forum-subcategory-row {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  transition: transform 0.1s, box-shadow 0.15s;
+}
+
+.forum-subcategory-row:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.15);
+}
+
+.forum-subcategory-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.forum-subcategory-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.forum-subcategory-main h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 2px;
+}
+
+.forum-subcategory-desc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.forum-subcategory-meta {
+  flex-shrink: 0;
+  text-align: right;
+  max-width: 220px;
+}
+
+.forum-subcategory-meta .forum-latest-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+
+.forum-subcategory-meta .forum-latest-by {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.forum-subcategory-meta .forum-latest-empty {
+  font-size: 0.78rem;
+  color: var(--text-subtle);
+  font-style: italic;
+}
+
+@media (max-width: 600px) {
+  .forum-subcategory-meta { display: none; }
+}
+
+/* ---------- Section breadcrumb on category page ---------- */
+.breadcrumb-sep {
+  margin: 0 6px;
+  color: var(--text-subtle);
+}
+
+.breadcrumb-section {
+  color: var(--text-muted);
+  font-weight: 600;
+}
