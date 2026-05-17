@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Store Profile — AquaHub</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="app-body">
+    <div id="topNavRoot"></div>
+
+    <main class="app-page">
+        <header class="app-content-head">
+            <div>
+                <nav class="breadcrumb"><a href="/stores.html">LFS Finder</a> / <span id="storeBreadcrumb">Profile</span></nav>
+                <h1 class="page-title" id="storeName">Loading...</h1>
+                <div class="text-muted" id="storeLocation">———</div>
+            </div>
+        </header>
+
+        <div class="dashboard-grid" style="margin-top: 20px;">
+            <section class="card">
+                <h3 class="section-heading" style="margin-top: 0;">Vital Signs</h3>
+                <div class="store-vitals" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; text-align: center; background: var(--surface-raised); padding: 15px; border-radius: 12px;">
+                    <div><div class="vital-label" style="font-size: 0.7rem; font-weight: 700; color: var(--text-subtle);">CLEAN</div><div class="vital-value" style="font-size: 1.2rem; font-weight: 700;">—</div></div>
+                    <div><div class="vital-label" style="font-size: 0.7rem; font-weight: 700; color: var(--text-subtle);">HEALTH</div><div class="vital-value" style="font-size: 1.2rem; font-weight: 700;">—</div></div>
+                    <div><div class="vital-label" style="font-size: 0.7rem; font-weight: 700; color: var(--text-subtle);">STAFF</div><div class="vital-value" style="font-size: 1.2rem; font-weight: 700;">—</div></div>
+                </div>
+                <button class="btn-secondary btn-sm" style="width: 100%; margin-top: 15px;">Submit a Report</button>
+            </section>
+
+            <section class="card">
+                <h3 class="section-heading" style="margin-top: 0;">Recent Sightings</h3>
+                <div id="sightingList" class="text-muted" style="font-size: 0.9rem;">
+                    No recent livestock spotted here.
+                </div>
+                <button class="btn-primary btn-sm" style="width: 100%; margin-top: 15px;">Log a Sighting</button>
+            </section>
+        </div>
+    </main>
+
+    <script type="module">
+        import { supabase, requireAuth } from '/lib/supabase.js';
+        import { mountTopNav } from '/lib/topnav.js';
+
+        const user = await requireAuth();
+        await mountTopNav('stores');
+
+        // Get ID from URL: store-detail.html?id=123
+        const params = new URLSearchParams(window.location.search);
+        const storeId = params.get('id');
+
+        async function loadStoreProfile() {
+            if (!storeId) {
+                window.location.href = '/stores.html';
+                return;
+            }
+
+            const { data: store, error } = await supabase
+                .from('lfs_directory')
+                .select('*')
+                .eq('id', storeId)
+                .single();
+
+            if (store) {
+                document.getElementById('storeName').textContent = store.name;
+                document.getElementById('storeBreadcrumb').textContent = store.name;
+                document.getElementById('storeLocation').textContent = `${store.address || ''} ${store.city}, ${store.state}`;
+            }
+        }
+
+        loadStoreProfile();
+    </script>
+</body>
+</html>
