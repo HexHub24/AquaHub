@@ -36,6 +36,14 @@
           <input id="password" type="password" class="form-input" autocomplete="current-password" minlength="8" required />
         </div>
 
+        <div class="form-group" id="signupDisplayNameGroup" style="display:none">
+          <label class="form-label" for="signupDisplayName">Display name</label>
+          <input id="signupDisplayName" type="text" class="form-input"
+            placeholder="What others see on your posts"
+            autocomplete="off" maxlength="30" />
+          <p class="form-hint" id="signupDisplayNameHint">2–30 characters. Shown next to your posts.</p>
+        </div>
+
         <button id="submitBtn" class="btn-primary" type="button">Sign In</button>
 
         <p class="auth-foot">
@@ -46,6 +54,7 @@
 
     <script type="module">
       import { supabase, redirectIfAuthed } from '/lib/supabase.js';
+      import { validateDisplayName, isDisplayNameAvailable, setMyDisplayName } from '/lib/profiles.js';
 
       await redirectIfAuthed();
 
@@ -63,6 +72,7 @@
         tabs.forEach((t) => t.classList.toggle('active', t.dataset.mode === mode));
         submitBtn.textContent = mode === 'signin' ? 'Sign In' : 'Create Account';
         passwordEl.autocomplete = mode === 'signin' ? 'current-password' : 'new-password';
+        document.getElementById('signupDisplayNameGroup').style.display = mode === 'signup' ? '' : 'none';
         clearAlert();
       }
 
@@ -78,6 +88,40 @@
 
       tabs.forEach((tab) => {
         tab.addEventListener('click', () => setMode(tab.dataset.mode));
+      });
+
+      // ---- Display name live availability check (signup only) ----
+      const dnInput = document.getElementById('signupDisplayName');
+      const dnHint = document.getElementById('signupDisplayNameHint');
+      let dnTimeout;
+
+      function setDnHint(text, className = '') {
+        dnHint.textContent = text;
+        dnHint.className = `form-hint ${className}`;
+      }
+
+      dnInput.addEventListener('input', () => {
+        const val = dnInput.value;
+        if (!val) {
+          setDnHint('2–30 characters. Shown next to your posts.');
+          return;
+        }
+        const v = validateDisplayName(val);
+        if (!v.valid) {
+          setDnHint(v.error, 'form-hint-error');
+          return;
+        }
+        setDnHint('Checking availability…');
+        clearTimeout(dnTimeout);
+        dnTimeout = setTimeout(async () => {
+          try {
+            const available = await isDisplayNameAvailable(val);
+            if (available) setDnHint(`✓ "${val}" is available.`, 'form-hint-success');
+            else setDnHint(`"${val}" is taken. Try another.`, 'form-hint-error');
+          } catch (e) {
+            setDnHint(`Couldn't check: ${e.message}`, 'form-hint-error');
+          }
+        }, 350);
       });
 
       // Apply initial mode from URL
@@ -106,15 +150,44 @@
             if (error) throw error;
             window.location.href = '/app.html';
           } else {
+            // ---- Signup with display name ----
+            const displayName = dnInput.value;
+            const v = validateDisplayName(displayName);
+            if (!v.valid) {
+              showAlert(v.error);
+              dnInput.focus();
+              return;
+            }
+            // Re-check availability at submit time to catch races between
+            // the typing-debounce and pressing Submit
+            const available = await isDisplayNameAvailable(displayName);
+            if (!available) {
+              showAlert(`"${displayName}" was just taken. Try another.`);
+              dnInput.focus();
+              return;
+            }
+
             const { data, error } = await supabase.auth.signUp({ email, password });
             if (error) throw error;
+
             if (data.user && !data.session) {
+              // Email confirmation is on — user not authenticated yet, so we
+              // can't insert the profile. They'll set the name via /welcome.html
+              // on first signin (the topnav guard catches it).
               showAlert(
                 'Check your email to confirm your account, then sign in.',
                 'success',
               );
               setMode('signin');
             } else {
+              // Logged in — create the profile row now
+              const result = await setMyDisplayName(data.user.id, displayName);
+              if (!result.ok) {
+                // Rare race: someone else grabbed the name in the window between
+                // our check and the insert. /welcome.html will let them retry.
+                window.location.href = '/welcome.html';
+                return;
+              }
               window.location.href = '/app.html';
             }
           }
@@ -128,7 +201,7 @@
 
       submitBtn.addEventListener('click', handleSubmit);
 
-      [emailEl, passwordEl].forEach((el) => {
+      [emailEl, passwordEl, dnInput].forEach((el) => {
         el.addEventListener('keydown', (e) => {
           if (e.key === 'Enter') handleSubmit();
         });
