@@ -65,12 +65,16 @@
       import { supabase, requireAuth } from '/lib/supabase.js';
       import { mountTopNav } from '/lib/topnav.js';
       import { taskStatus } from '/lib/maintenance.js';
+      import { getMyProfile } from '/lib/profiles.js';
 
       const user = await requireAuth();
       await mountTopNav('dashboard');
 
       if (user) {
-        document.getElementById('greetingSub').textContent = `Signed in as ${user.email}`;
+        const profile = await getMyProfile(user.id);
+        const name = profile?.display_name || user.email;
+        document.getElementById('greeting').innerHTML = `Welcome back, <strong>${name.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}</strong> 👋`;
+        document.getElementById('greetingSub').textContent = user.email;
 
         const { count } = await supabase
           .from('tanks')
