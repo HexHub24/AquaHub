@@ -31,7 +31,7 @@
 
         <div id="forumContent" style="display: none">
           <section class="forum-section">
-            <h2 class="section-heading">Categories</h2>
+            <h2 class="section-heading">Browse</h2>
             <ul id="categoryList" class="forum-category-list"></ul>
           </section>
 
@@ -97,38 +97,69 @@
           (profs || []).forEach((p) => { authorNameMap[p.user_id] = p.display_name; });
         }
 
-        // Count threads per category
-        const countsByCategory = {};
-        for (const t of recent) {
-          countsByCategory[t.category_id] = (countsByCategory[t.category_id] || 0) + 1;
-        }
+        // Count threads per category (currently unused but kept for future use)
         // For each category, ALSO fetch the latest thread (we only have last 10 across all)
         // — but that's enough for a v1 homepage. Production would do per-category counts in SQL.
 
         document.getElementById('forumContent').style.display = 'block';
 
-        // Render categories
-        document.getElementById('categoryList').innerHTML = cats.map((c) => {
-          const latestForCat = recent.find((t) => t.category_id === c.id);
-          return `
-            <li class="forum-category-row">
-              <a href="/forum-category.html?slug=${encodeURIComponent(c.slug)}" class="forum-category-link">
-                <div class="forum-category-main">
-                  <h3>${escapeHtml(c.name)}</h3>
-                  <p class="forum-category-desc">${escapeHtml(c.description || '')}</p>
-                </div>
-                <div class="forum-category-meta">
-                  ${latestForCat
-                    ? `<div class="forum-category-latest">
-                         <div class="forum-latest-title">${escapeHtml(latestForCat.title)}</div>
-                         <div class="forum-latest-by">${timeAgo(latestForCat.last_reply_at)}</div>
-                       </div>`
-                    : `<div class="forum-category-latest text-muted">No threads yet</div>`}
-                </div>
-              </a>
-            </li>
-          `;
-        }).join('');
+        // Section metadata — defines the order and labels for the top-level rows
+        const SECTIONS = [
+          { key: 'freshwater',  label: 'Freshwater',                       icon: '🐟' },
+          { key: 'saltwater',   label: 'Saltwater',                        icon: '🐠' },
+          { key: 'paludarium',  label: 'Terrariums, Paludariums & More',   icon: '🌿' },
+          { key: 'marketplace', label: 'Marketplace',                      icon: '🛒' },
+        ];
+
+        // Group categories by section
+        const bySection = {};
+        for (const c of cats) {
+          if (!c.section) continue; // skip legacy/unsectioned
+          if (!bySection[c.section]) bySection[c.section] = [];
+          bySection[c.section].push(c);
+        }
+
+        // Map category.id -> most-recent thread (if any) for that category
+        const recentByCategory = {};
+        for (const t of recent) {
+          if (!recentByCategory[t.category_id]) recentByCategory[t.category_id] = t;
+        }
+
+        // Render sectioned layout
+        document.getElementById('categoryList').innerHTML = SECTIONS
+          .filter((s) => (bySection[s.key] || []).length > 0)
+          .map((section) => {
+            const subs = (bySection[section.key] || []).map((c) => {
+              const latest = recentByCategory[c.id];
+              return `
+                <li class="forum-subcategory-row">
+                  <a href="/forum-category.html?slug=${encodeURIComponent(c.slug)}" class="forum-subcategory-link">
+                    <div class="forum-subcategory-main">
+                      <h4>${escapeHtml(c.name)}</h4>
+                      <p class="forum-subcategory-desc">${escapeHtml(c.description || '')}</p>
+                    </div>
+                    <div class="forum-subcategory-meta">
+                      ${latest
+                        ? `<div class="forum-latest-title">${escapeHtml(latest.title)}</div>
+                           <div class="forum-latest-by">${timeAgo(latest.last_reply_at)}</div>`
+                        : `<div class="forum-latest-empty">No threads yet</div>`}
+                    </div>
+                  </a>
+                </li>
+              `;
+            }).join('');
+            return `
+              <section class="forum-section-block">
+                <header class="forum-section-head">
+                  <span class="forum-section-icon">${section.icon}</span>
+                  <h3>${escapeHtml(section.label)}</h3>
+                </header>
+                <ul class="forum-subcategory-list">
+                  ${subs}
+                </ul>
+              </section>
+            `;
+          }).join('');
 
         // Render recent activity
         const recentEl = document.getElementById('recentList');
