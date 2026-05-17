@@ -3662,3 +3662,154 @@ body.app-body.forum-page-body .forum-main {
   color: var(--text-muted);
   font-weight: 600;
 }
+/* ============================================================
+   AquaHub — Profiles feature styles
+   Append to styles.css
+   ============================================================ */
+
+/* Welcome page reuses .auth-shell / .auth-card from existing styles */
+
+.auth-heading {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text, #0f172a);
+  margin: 16px 0 4px;
+  text-align: center;
+}
+
+.auth-subheading {
+  text-align: center;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.auth-footer-row {
+  margin-top: 16px;
+  text-align: center;
+}
+
+.form-hint-error {
+  color: #b91c1c;
+}
+
+.form-hint-success {
+  color: #047857;
+}
+
+/* ============================================================
+   Settings page
+   ============================================================ */
+
+.settings-card {
+  margin-bottom: 16px;
+}
+
+.settings-section-head {
+  margin-bottom: 16px;
+}
+
+.settings-section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text, #0f172a);
+  margin: 0;
+}
+
+.settings-field {
+  padding: 14px 0;
+  border-top: 1px solid var(--border, #e2e8f0);
+}
+
+.settings-field:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.settings-field-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.settings-field-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-field-value {
+  font-size: 16px;
+  color: var(--text, #0f172a);
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.settings-field-readonly {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted, #64748b);
+  background: var(--bg, #f0f9ff);
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border, #e2e8f0);
+  white-space: nowrap;
+}
+
+.settings-field-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-field-edit .form-input {
+  width: 100%;
+}
+
+.settings-field-edit-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.settings-soon-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-soon-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border, #e2e8f0);
+}
+
+.settings-soon-row:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.settings-soon-row strong {
+  font-size: 15px;
+  color: var(--text, #0f172a);
+}
+
+.settings-soon-row p {
+  margin: 2px 0 0;
+}
+
+@media (max-width: 600px) {
+  .settings-field-edit-actions {
+    flex-direction: column;
+  }
+  .settings-field-edit-actions .btn-inline {
+    width: 100%;
+  }
+}
