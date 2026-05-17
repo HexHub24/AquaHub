@@ -123,6 +123,7 @@
       import {
         MARKETPLACE_CATEGORY_SLUG,
         MARKETPLACE_KINDS,
+        isMarketplaceSlug,
         validateMarketplaceFields,
       } from '/lib/marketplace.js';
 
@@ -191,9 +192,30 @@
         const { data: cats } = await supabase
           .from('forum_categories').select('*').eq('is_active', true).order('display_order');
         const catSelect = document.getElementById('threadCategory');
-        catSelect.innerHTML = (cats || []).map((c) =>
-          `<option value="${c.id}" data-slug="${c.slug}">${escapeHtml(c.name)} — ${escapeHtml(c.description || '')}</option>`
-        ).join('');
+
+        // Group by section, render as optgroups
+        const SECTIONS = [
+          { key: 'freshwater',  label: 'Freshwater' },
+          { key: 'saltwater',   label: 'Saltwater' },
+          { key: 'paludarium',  label: 'Terrariums, Paludariums & More' },
+          { key: 'marketplace', label: 'Marketplace' },
+        ];
+        const bySection = {};
+        for (const c of (cats || [])) {
+          if (!c.section) continue;
+          if (!bySection[c.section]) bySection[c.section] = [];
+          bySection[c.section].push(c);
+        }
+        catSelect.innerHTML = SECTIONS
+          .filter((s) => bySection[s.key]?.length)
+          .map((s) => `
+            <optgroup label="${escapeHtml(s.label)}">
+              ${bySection[s.key].map((c) =>
+                `<option value="${c.id}" data-slug="${escapeHtml(c.slug)}" data-section="${escapeHtml(c.section)}">${escapeHtml(c.name)}</option>`
+              ).join('')}
+            </optgroup>
+          `).join('');
+
         if (preselectSlug) {
           for (const opt of catSelect.options) {
             if (opt.dataset.slug === preselectSlug) { catSelect.value = opt.value; break; }
@@ -232,7 +254,7 @@
         function syncMarketplaceVisibility() {
           const opt = catSelect.options[catSelect.selectedIndex];
           const slug = opt?.dataset?.slug;
-          if (slug === MARKETPLACE_CATEGORY_SLUG) {
+          if (isMarketplaceSlug(slug)) {
             mpSection.style.display = 'block';
           } else {
             mpSection.style.display = 'none';
@@ -404,7 +426,7 @@
         let mpKind = null;
         let mpStatus = null;
         let mpMeta = null;
-        if (categorySlug === MARKETPLACE_CATEGORY_SLUG) {
+        if (isMarketplaceSlug(categorySlug)) {
           mpKind = document.getElementById('mpKind').value || null;
           const priceVal = document.getElementById('mpPrice').value.trim();
           const locationVal = document.getElementById('mpLocation').value.trim();
