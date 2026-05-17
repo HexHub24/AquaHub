@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0c4a6e" />
+    <title>Settings — AquaHub</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="manifest" href="/manifest.json" />
+  </head>
+  <body class="app-body">
+    <div id="topNavRoot"></div>
+
+    <main class="app-page">
+      <header class="app-content-head">
+        <div>
+          <h1 class="page-title">Settings</h1>
+          <p class="text-muted">Manage your account and preferences.</p>
+        </div>
+      </header>
+
+      <div id="settingsAlert" class="alert" role="alert"></div>
+
+      <!-- ============ Account section ============ -->
+      <section class="card settings-card">
+        <div class="settings-section-head">
+          <h2 class="settings-section-title">Account</h2>
+        </div>
+
+        <div class="settings-field">
+          <div class="settings-field-label">Display name</div>
+          <div class="settings-field-row" id="nameViewRow">
+            <div class="settings-field-value" id="currentName">Loading…</div>
+            <button class="btn-secondary btn-inline" id="editNameBtn" type="button">Edit</button>
+          </div>
+          <div class="settings-field-edit" id="nameEditRow" style="display:none">
+            <input id="nameInput" type="text" class="form-input"
+              placeholder="Pick a display name" autocomplete="off" maxlength="30" />
+            <div class="settings-field-edit-actions">
+              <button class="btn-secondary btn-inline" id="nameCancelBtn" type="button">Cancel</button>
+              <button class="btn-primary btn-inline" id="nameSaveBtn" type="button" disabled>Save</button>
+            </div>
+            <p class="form-hint" id="nameHint">2–30 characters. Letters, numbers, spaces, _ . - only.</p>
+          </div>
+        </div>
+
+        <div class="settings-field">
+          <div class="settings-field-label">Email</div>
+          <div class="settings-field-row">
+            <div class="settings-field-value" id="currentEmail">…</div>
+            <span class="settings-field-readonly">read-only</span>
+          </div>
+        </div>
+
+        <div class="settings-field">
+          <button class="btn-secondary" id="signOutBtn" type="button">Sign out</button>
+        </div>
+      </section>
+
+      <!-- ============ Coming soon ============ -->
+      <section class="card settings-card">
+        <div class="settings-section-head">
+          <h2 class="settings-section-title">Coming soon</h2>
+        </div>
+        <div class="settings-soon-list">
+          <div class="settings-soon-row">
+            <div>
+              <strong>Profile picture</strong>
+              <p class="text-muted text-small">Upload a custom avatar.</p>
+            </div>
+            <span class="settings-field-readonly">soon</span>
+          </div>
+          <div class="settings-soon-row">
+            <div>
+              <strong>Notifications</strong>
+              <p class="text-muted text-small">Pick what you want to be notified about.</p>
+            </div>
+            <span class="settings-field-readonly">soon</span>
+          </div>
+          <div class="settings-soon-row">
+            <div>
+              <strong>Change password</strong>
+              <p class="text-muted text-small">Reset or rotate your account password.</p>
+            </div>
+            <span class="settings-field-readonly">soon</span>
+          </div>
+          <div class="settings-soon-row">
+            <div>
+              <strong>Delete account</strong>
+              <p class="text-muted text-small">Permanently remove your account and all data.</p>
+            </div>
+            <span class="settings-field-readonly">soon</span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script type="module">
+      import { supabase, requireAuth } from '/lib/supabase.js';
+      import { mountTopNav } from '/lib/topnav.js';
+      import { validateDisplayName, isDisplayNameAvailable, setMyDisplayName, getMyProfile } from '/lib/profiles.js';
+
+      const user = await requireAuth();
+      await mountTopNav('settings');
+      if (!user) throw new Error('not authenticated');
+
+      // ---- Load current state ----
+      const profile = await getMyProfile(user.id);
+
+      // If they somehow don't have a profile, kick them to welcome
+      if (!profile?.display_name) {
+        window.location.href = '/welcome.html';
+        throw new Error('no display name');
+      }
+
+      const currentNameEl = document.getElementById('currentName');
+      const currentEmailEl = document.getElementById('currentEmail');
+      const alertEl = document.getElementById('settingsAlert');
+
+      const nameViewRow = document.getElementById('nameViewRow');
+      const nameEditRow = document.getElementById('nameEditRow');
+      const nameInput = document.getElementById('nameInput');
+      const nameHint = document.getElementById('nameHint');
+      const nameSaveBtn = document.getElementById('nameSaveBtn');
+      const editNameBtn = document.getElementById('editNameBtn');
+      const nameCancelBtn = document.getElementById('nameCancelBtn');
+
+      currentNameEl.textContent = profile.display_name;
+      currentEmailEl.textContent = user.email;
+
+      function showAlert(msg, type = 'error') {
+        alertEl.textContent = msg;
+        alertEl.className = `alert show alert-${type}`;
+        if (type === 'success') setTimeout(() => { alertEl.className = 'alert'; }, 3000);
+      }
+      function clearAlert() {
+        alertEl.className = 'alert';
+        alertEl.textContent = '';
+      }
+      function setHint(text, className = '') {
+        nameHint.textContent = text;
+        nameHint.className = `form-hint ${className}`;
+      }
+
+      function openEdit() {
+        nameInput.value = profile.display_name;
+        setHint('2–30 characters. Letters, numbers, spaces, _ . - only.');
+        nameSaveBtn.disabled = true;
+        nameViewRow.style.display = 'none';
+        nameEditRow.style.display = '';
+        setTimeout(() => { nameInput.focus(); nameInput.select(); }, 30);
+      }
+      function closeEdit() {
+        nameViewRow.style.display = '';
+        nameEditRow.style.display = 'none';
+        clearAlert();
+      }
+
+      editNameBtn.addEventListener('click', openEdit);
+      nameCancelBtn.addEventListener('click', closeEdit);
+
+      let checkTimeout;
+      nameInput.addEventListener('input', () => {
+        const val = nameInput.value;
+        clearAlert();
+        nameSaveBtn.disabled = true;
+
+        // If unchanged, no need to check
+        if (val === profile.display_name) {
+          setHint('That\'s your current name.');
+          return;
+        }
+        const v = validateDisplayName(val);
+        if (!v.valid) {
+          setHint(v.error, 'form-hint-error');
+          return;
+        }
+        setHint('Checking availability…');
+        clearTimeout(checkTimeout);
+        checkTimeout = setTimeout(async () => {
+          try {
+            const available = await isDisplayNameAvailable(val);
+            if (available) {
+              setHint(`✓ "${val}" is available.`, 'form-hint-success');
+              nameSaveBtn.disabled = false;
+            } else {
+              setHint(`"${val}" is taken.`, 'form-hint-error');
+            }
+          } catch (e) {
+            setHint(`Couldn't check: ${e.message}`, 'form-hint-error');
+          }
+        }, 350);
+      });
+
+      nameSaveBtn.addEventListener('click', async () => {
+        const val = nameInput.value;
+        const v = validateDisplayName(val);
+        if (!v.valid) { showAlert(v.error); return; }
+        nameSaveBtn.disabled = true;
+        nameSaveBtn.textContent = 'Saving…';
+        const result = await setMyDisplayName(user.id, val);
+        nameSaveBtn.textContent = 'Save';
+        if (!result.ok) {
+          showAlert(result.error);
+          if (!result.taken) nameSaveBtn.disabled = false;
+          return;
+        }
+        // Update local state + UI
+        profile.display_name = val;
+        currentNameEl.textContent = val;
+        closeEdit();
+        showAlert('Display name updated.', 'success');
+      });
+
+      nameInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !nameSaveBtn.disabled) nameSaveBtn.click();
+        else if (e.key === 'Escape') closeEdit();
+      });
+
+      document.getElementById('signOutBtn').addEventListener('click', async () => {
+        await supabase.auth.signOut();
+        window.location.href = '/login.html';
+      });
+    </script>
+  </body>
+</html>

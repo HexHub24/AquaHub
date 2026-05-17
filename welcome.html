@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0c4a6e" />
+    <title>Welcome — AquaHub</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="manifest" href="/manifest.json" />
+  </head>
+  <body class="auth-shell-body">
+    <div class="auth-shell">
+      <div class="auth-card">
+        <div class="brand">
+          <div class="brand-logo">🐠</div>
+          <div class="brand-name">AquaHub</div>
+          <div class="brand-tagline">One quick thing before you dive in</div>
+        </div>
+
+        <h2 class="auth-heading">Pick a display name</h2>
+        <p class="text-muted auth-subheading">
+          This is the name shown next to your posts, on your tanks, and across AquaHub.
+          You can change it later from Settings.
+        </p>
+
+        <div id="welcomeAlert" class="alert" role="alert"></div>
+
+        <div class="form-group">
+          <label for="welcomeName" class="form-label">Display name</label>
+          <input id="welcomeName" type="text" class="form-input"
+            placeholder="e.g. ReefRunner or Gordon W"
+            autocomplete="off"
+            maxlength="30" />
+          <p class="form-hint" id="welcomeHint">2–30 characters. Letters, numbers, spaces, _ . - only.</p>
+        </div>
+
+        <button id="welcomeSaveBtn" class="btn-primary" type="button" disabled>Continue</button>
+
+        <div class="auth-footer-row">
+          <button id="welcomeSignOutBtn" class="btn-link" type="button">Sign out</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      import { supabase, getCurrentUser } from '/lib/supabase.js';
+      import { validateDisplayName, isDisplayNameAvailable, setMyDisplayName, getMyProfile } from '/lib/profiles.js';
+
+      const user = await getCurrentUser();
+
+      // If not logged in at all, send to login
+      if (!user) {
+        window.location.href = '/login.html';
+        throw new Error('not authenticated');
+      }
+
+      // If they already have a name, they don't belong here — send home
+      const existing = await getMyProfile(user.id);
+      if (existing?.display_name) {
+        window.location.href = '/app.html';
+        throw new Error('already has display name');
+      }
+
+      const nameInput = document.getElementById('welcomeName');
+      const hintEl = document.getElementById('welcomeHint');
+      const saveBtn = document.getElementById('welcomeSaveBtn');
+      const alertEl = document.getElementById('welcomeAlert');
+
+      function showAlert(msg, type = 'error') {
+        alertEl.textContent = msg;
+        alertEl.className = `alert show alert-${type}`;
+      }
+      function clearAlert() {
+        alertEl.className = 'alert';
+        alertEl.textContent = '';
+      }
+
+      let checkTimeout;
+      let lastChecked = null;
+
+      function setHint(text, className = '') {
+        hintEl.textContent = text;
+        hintEl.className = `form-hint ${className}`;
+      }
+
+      nameInput.addEventListener('input', () => {
+        const val = nameInput.value;
+        clearAlert();
+        saveBtn.disabled = true;
+
+        const v = validateDisplayName(val);
+        if (!v.valid) {
+          setHint(v.error, 'form-hint-error');
+          return;
+        }
+        setHint('Checking availability…');
+
+        // Debounce the availability call
+        clearTimeout(checkTimeout);
+        checkTimeout = setTimeout(async () => {
+          try {
+            const available = await isDisplayNameAvailable(val);
+            lastChecked = { name: val, available };
+            if (available) {
+              setHint(`✓ "${val}" is available.`, 'form-hint-success');
+              saveBtn.disabled = false;
+            } else {
+              setHint(`"${val}" is taken. Try another.`, 'form-hint-error');
+            }
+          } catch (e) {
+            setHint(`Couldn't check: ${e.message}`, 'form-hint-error');
+          }
+        }, 350);
+      });
+
+      saveBtn.addEventListener('click', async () => {
+        const val = nameInput.value;
+        const v = validateDisplayName(val);
+        if (!v.valid) {
+          showAlert(v.error);
+          return;
+        }
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving…';
+        const result = await setMyDisplayName(user.id, val);
+        if (!result.ok) {
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Continue';
+          showAlert(result.error);
+          if (result.taken) {
+            setHint(`"${val}" was just taken. Try another.`, 'form-hint-error');
+          }
+          return;
+        }
+        // Success — go to dashboard
+        window.location.href = '/app.html';
+      });
+
+      // Enter to submit
+      nameInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !saveBtn.disabled) saveBtn.click();
+      });
+
+      document.getElementById('welcomeSignOutBtn').addEventListener('click', async () => {
+        await supabase.auth.signOut();
+        window.location.href = '/login.html';
+      });
+
+      nameInput.focus();
+    </script>
+  </body>
+</html>
