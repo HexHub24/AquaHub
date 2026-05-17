@@ -25,19 +25,6 @@
 
         <div id="composeAlert" class="alert" role="alert"></div>
 
-        <!-- Display name required prompt -->
-        <div id="needNameWrap" class="card" style="display: none">
-          <h2>Pick a display name first</h2>
-          <p class="text-muted" style="margin-bottom: 12px">Other users will see this name on your posts. You can change it later.</p>
-          <div id="needNameAlert" class="alert" role="alert"></div>
-          <div class="form-group">
-            <label class="form-label" for="needNameInput">Display name *</label>
-            <input id="needNameInput" type="text" class="form-input" maxlength="30" placeholder="e.g. ReefRunner42" />
-            <p class="form-hint">2–30 characters, letters / numbers / spaces / hyphens / underscores.</p>
-          </div>
-          <button id="needNameSaveBtn" class="btn-primary btn-inline" type="button">Save and continue</button>
-        </div>
-
         <!-- Compose form -->
         <div id="composeWrap" class="card" style="display: none">
           <div class="form-group">
@@ -117,7 +104,7 @@
     <script type="module">
       import { supabase, requireAuth } from '/lib/supabase.js';
       import { mountTopNav } from '/lib/topnav.js';
-      import { renderMarkdown, validateDisplayName, titleProfanityCheck, buildTankSnapshot } from '/lib/forum.js';
+      import { renderMarkdown, titleProfanityCheck, buildTankSnapshot } from '/lib/forum.js';
       import { pickAndUploadForumImage } from '/lib/forum-upload.js';
       import { computeBioload } from '/lib/bioload.js';
       import {
@@ -151,36 +138,16 @@
         el.textContent = '';
       }
 
-      // ---- 1. Check forum profile (display name) ----
+      // ---- 1. Check forum profile (ban check) ----
+      // Every user has a display_name by the time they reach this page —
+      // the topnav guard on every app page redirects nameless users to
+      // /welcome.html before they can navigate here. So we only need to
+      // check for the rare ban case.
       const { data: profile } = await supabase
-        .from('forum_user_profiles').select('*').eq('user_id', user.id).maybeSingle();
+        .from('forum_user_profiles').select('is_banned').eq('user_id', user.id).maybeSingle();
 
       if (profile?.is_banned) {
         showAlert('composeAlert', 'Your account is suspended from posting.');
-      } else if (!profile) {
-        document.getElementById('needNameWrap').style.display = 'block';
-
-        document.getElementById('needNameSaveBtn').addEventListener('click', async () => {
-          clearAlert('needNameAlert');
-          const name = document.getElementById('needNameInput').value.trim();
-          const err = validateDisplayName(name);
-          if (err) { showAlert('needNameAlert', err); return; }
-
-          const btn = document.getElementById('needNameSaveBtn');
-          btn.disabled = true; btn.textContent = 'Saving…';
-          const { error } = await supabase.from('forum_user_profiles').insert({
-            user_id: user.id, display_name: name,
-          });
-          btn.disabled = false; btn.textContent = 'Save and continue';
-          if (error) {
-            const msg = error.code === '23505' ? 'That display name is taken. Try another.' : error.message;
-            showAlert('needNameAlert', msg);
-            return;
-          }
-          // Re-load: now they have a profile, show the compose form
-          document.getElementById('needNameWrap').style.display = 'none';
-          await bootCompose();
-        });
       } else {
         await bootCompose();
       }
