@@ -67,6 +67,7 @@
       import { timeAgo, fullTime } from '/lib/forum.js';
       import {
         MARKETPLACE_CATEGORY_SLUG,
+        isMarketplaceSlug,
         marketplacePrefix,
         marketplacePrefixClass,
         renderMarketplaceMetaStrip,
@@ -105,12 +106,26 @@
 
         document.getElementById('categoryName').textContent = catRow.name;
         document.getElementById('categoryDesc').textContent = catRow.description || '';
+
+        // Show section in breadcrumb
+        const sectionLabels = {
+          freshwater: 'Freshwater',
+          saltwater: 'Saltwater',
+          paludarium: 'Terrariums, Paludariums & More',
+          marketplace: 'Marketplace',
+        };
+        if (catRow.section && sectionLabels[catRow.section]) {
+          const bc = document.querySelector('.breadcrumb');
+          if (bc) {
+            bc.innerHTML = `<a href="/forum.html">← Forum</a> <span class="breadcrumb-sep">·</span> <span class="breadcrumb-section">${escapeHtml(sectionLabels[catRow.section])}</span>`;
+          }
+        }
         if (user) {
           document.getElementById('newThreadCta').href = `/forum-compose.html?cat=${encodeURIComponent(slug)}`;
         }
 
-        // Show "active only" toggle if this is the marketplace category
-        if (slug === MARKETPLACE_CATEGORY_SLUG) {
+        // Show "active only" toggle if this is a marketplace category
+        if (isMarketplaceSlug(slug)) {
           document.getElementById('mpActiveOnlyWrap').style.display = '';
         }
 
@@ -133,7 +148,7 @@
           .eq('is_hidden', false);
 
         // Marketplace: optionally hide resolved
-        if (slug === MARKETPLACE_CATEGORY_SLUG && activeOnly) {
+        if (isMarketplaceSlug(slug) && activeOnly) {
           // Show: status='active' OR status IS NULL (legacy pre-marketplace threads)
           query = query.or('marketplace_status.eq.active,marketplace_status.is.null');
         }
