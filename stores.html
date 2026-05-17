@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>LFS Finder — AquaHub</title>
+    <link rel="stylesheet" href="/styles.css">
+    <style>
+        .store-search-wrap { margin-bottom: 24px; display: flex; gap: 10px; }
+        .store-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 16px;
+        }
+        .store-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .store-header { display: flex; justify-content: space-between; align-items: flex-start; }
+        .store-title h3 { font-size: 1.1rem; font-weight: 700; color: var(--text); margin: 0; }
+        .store-address { font-size: 0.85rem; color: var(--text-muted); }
+        
+        .store-vitals {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            padding: 12px;
+            background: var(--surface-raised);
+            border-radius: 10px;
+            text-align: center;
+        }
+        .vital-stat { display: flex; flex-direction: column; gap: 2px; }
+        .vital-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: var(--text-subtle); }
+        .vital-value { font-size: 1rem; font-weight: 700; color: var(--primary-dark); }
+
+        .empty-state-card {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 60px 20px;
+            background: var(--surface);
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+        }
+    </style>
+</head>
+<body class="app-body">
+    <div id="topNavRoot"></div>
+
+    <main class="app-page">
+        <header class="app-content-head">
+            <div>
+                <nav class="breadcrumb"><a href="/app.html">Dashboard</a> / <span>LFS Finder</span></nav>
+                <h1 class="page-title">Local Fish Stores</h1>
+            </div>
+            <button class="btn-primary btn-inline" id="openAddModal">
+                <span>+</span> Add a Store
+            </button>
+        </header>
+
+        <section class="store-search-row" style="margin-bottom: 24px;">
+            <div class="form-group">
+                <input type="text" id="storeSearchInput" class="form-input" placeholder="Search by name, city, or state...">
+            </div>
+        </section>
+
+        <div id="storeGrid" class="store-grid">
+            </div>
+    </main>
+
+    <div id="addStoreModal" class="modal-backdrop" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Add Local Fish Store</h3>
+                <button class="modal-close" id="closeAddModal">×</button>
+            </div>
+            <form id="addStoreForm" class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Store Name</label>
+                    <input type="text" name="name" class="form-input" placeholder="e.g. Neptune Aquatics" required>
+                </div>
+                <div class="form-row" style="display: flex; gap: 12px; margin-top: 12px;">
+                    <div class="form-group" style="flex: 2;">
+                        <label class="form-label">City</label>
+                        <input type="text" name="city" class="form-input" placeholder="San Jose" required>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label class="form-label">State (Abbr)</label>
+                        <input type="text" name="state" class="form-input" placeholder="CA" maxlength="2" required>
+                    </div>
+                </div>
+                <div class="form-group" style="margin-top: 12px;">
+                    <label class="form-label">Address (Optional)</label>
+                    <input type="text" name="address" class="form-input" placeholder="123 Fish Lane">
+                </div>
+                <div class="form-group" style="margin-top: 16px;">
+                    <label class="form-label">Store Type</label>
+                    <div style="display: flex; gap: 15px;">
+                        <label style="font-size: 0.9rem;"><input type="checkbox" name="is_freshwater" checked> Freshwater</label>
+                        <label style="font-size: 0.9rem;"><input type="checkbox" name="is_saltwater"> Saltwater</label>
+                    </div>
+                </div>
+                <button type="submit" class="btn-primary" style="width: 100%; margin-top: 20px;">Save to Directory</button>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { supabase, requireAuth } from '/lib/supabase.js';
+        import { mountTopNav } from '/lib/topnav.js';
+
+        const user = await requireAuth();
+        await mountTopNav('stores');
+
+        const storeGrid = document.getElementById('storeGrid');
+        const searchInput = document.getElementById('storeSearchInput');
+        const addStoreModal = document.getElementById('addStoreModal');
+        const addStoreForm = document.getElementById('addStoreForm');
+
+        // Load Stores from Supabase
+        async function loadStores(query = '') {
+            let request = supabase.from('lfs_directory').select('*');
+            
+            if (query) {
+                // Search across Name, City, and State
+                request = request.or(`name.ilike.%${query}%,city.ilike.%${query}%,state.ilike.%${query}%`);
+            }
+
+            const { data, error } = await request.order('name', { ascending: true });
+
+            if (data && data.length > 0) {
+                renderStores(data);
+            } else {
+                renderEmpty(query);
+            }
+        }
+
+        function renderStores(stores) {
+            storeGrid.innerHTML = stores.map(store => `
+                <div class="store-card">
+                    <div class="store-header">
+                        <div class="store-title">
+                            <h3>${store.name}</h3>
+                            <div class="store-address">${store.city}, ${store.state}</div>
+                        </div>
+                        <div class="bioload-status ${store.is_saltwater ? 'bioload-tone-neutral' : 'bioload-tone-success'}">
+                            ${store.is_saltwater ? '🌊 Salt' : '🌿 Fresh'}
+                        </div>
+                    </div>
+                    <div class="store-vitals">
+                        <div class="vital-stat"><span class="vital-label">Clean</span><span class="vital-value">—</span></div>
+                        <div class="vital-stat"><span class="vital-label">Health</span><span class="vital-value">—</span></div>
+                        <div class="vital-stat"><span class="vital-label">Staff</span><span class="vital-value">—</span></div>
+                    </div>
+                    <div class="tank-card-actions">
+                        <a href="/store-detail.html?id=${store.id}" class="btn-secondary btn-sm" style="width:100%; text-align:center;">View Details</a>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderEmpty(query) {
+            storeGrid.innerHTML = `
+                <div class="empty-state-card">
+                    <div class="empty-icon">📍</div>
+                    <h3>${query ? 'No stores found for "' + query + '"' : 'The map is empty!'}</h3>
+                    <p>Help the community by adding your favorite local fish store.</p>
+                    <button class="btn-primary btn-inline" style="margin-top:15px;" onclick="document.getElementById('addStoreModal').style.display='flex'">
+                        Add a Store Now
+                    </button>
+                </div>
+            `;
+        }
+
+        // Handle Form Submission
+        addStoreForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const formData = new FormData(addStoreForm);
+            
+            const payload = {
+                name: formData.get('name'),
+                city: formData.get('city'),
+                state: formData.get('state').toUpperCase(),
+                address: formData.get('address'),
+                is_freshwater: formData.get('is_freshwater') === 'on',
+                is_saltwater: formData.get('is_saltwater') === 'on',
+                created_by: user.id
+            };
+
+            const { error } = await supabase.from('lfs_directory').insert([payload]);
+
+            if (error) {
+                alert("Error saving store: " + error.message);
+            } else {
+                addStoreModal.style.display = 'none';
+                addStoreForm.reset();
+                loadStores(); // Refresh list
+            }
+        };
+
+        // UI Listeners
+        document.getElementById('openAddModal').onclick = () => addStoreModal.style.display = 'flex';
+        document.getElementById('closeAddModal').onclick = () => addStoreModal.style.display = 'none';
+        
+        let timeout;
+        searchInput.oninput = (e) => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => loadStores(e.target.value), 300);
+        };
+
+        loadStores();
+    </script>
+</body>
+</html>
