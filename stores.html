@@ -141,28 +141,35 @@
         }
 
         function renderStores(stores) {
-            storeGrid.innerHTML = stores.map(store => `
-                <div class="store-card">
-                    <div class="store-header">
-                        <div class="store-title">
-                            <h3>${store.name}</h3>
-                            <div class="store-address">${store.city}, ${store.state}</div>
-                        </div>
-                        <div class="bioload-status ${store.is_saltwater ? 'bioload-tone-neutral' : 'bioload-tone-success'}">
-                            ${store.is_saltwater ? '🌊 Salt' : '🌿 Fresh'}
-                        </div>
+    storeGrid.innerHTML = stores.map(store => {
+        // Build the tags dynamically
+        let tags = '';
+        if (store.is_freshwater) tags += `<span class="bioload-status bioload-tone-success">🌿 Fresh</span> `;
+        if (store.is_saltwater) tags += `<span class="bioload-status bioload-tone-neutral">🌊 Salt</span>`;
+
+        return `
+            <div class="store-card">
+                <div class="store-header">
+                    <div class="store-title">
+                        <h3>${store.name}</h3>
+                        <div class="store-address">${store.city}, ${store.state}</div>
                     </div>
-                    <div class="store-vitals">
-                        <div class="vital-stat"><span class="vital-label">Clean</span><span class="vital-value">—</span></div>
-                        <div class="vital-stat"><span class="vital-label">Health</span><span class="vital-value">—</span></div>
-                        <div class="vital-stat"><span class="vital-label">Staff</span><span class="vital-value">—</span></div>
-                    </div>
-                    <div class="tank-card-actions">
-                        <a href="/store-detail.html?id=${store.id}" class="btn-secondary btn-sm" style="width:100%; text-align:center;">View Details</a>
+                    <div style="display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end;">
+                        ${tags}
                     </div>
                 </div>
-            `).join('');
-        }
+                <div class="store-vitals">
+                    <div class="vital-stat"><span class="vital-label">Clean</span><span class="vital-value">—</span></div>
+                    <div class="vital-stat"><span class="vital-label">Health</span><span class="vital-value">—</span></div>
+                    <div class="vital-stat"><span class="vital-label">Staff</span><span class="vital-value">—</span></div>
+                </div>
+                <div class="tank-card-actions">
+                    <a href="/store-detail.html?id=${store.id}" class="btn-secondary btn-sm" style="width:100%; text-align:center;">View Details</a>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
 
         function renderEmpty(query) {
             storeGrid.innerHTML = `
