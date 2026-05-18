@@ -164,8 +164,24 @@
         let nameMap = {};
         if (authorIds.length) {
           const { data: profs } = await supabase
-            .from('forum_user_profiles').select('user_id, display_name, post_count').in('user_id', authorIds);
+            .from('forum_user_profiles').select('user_id, display_name, post_count, avatar_url').in('user_id', authorIds);
           (profs || []).forEach((p) => { nameMap[p.user_id] = p; });
+        }
+
+        // Avatar helpers (inlined — same color palette as topnav.js)
+        function avatarColorClass(seed) {
+          if (!seed) return 'avatar-c0';
+          let h = 0;
+          for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
+          return `avatar-c${Math.abs(h) % 8}`;
+        }
+        function renderPostAvatar(profile, fallbackName) {
+          const name = profile?.display_name || fallbackName || 'Someone';
+          const initial = name.trim().charAt(0).toUpperCase() || '?';
+          if (profile?.avatar_url) {
+            return `<div class="forum-post-avatar has-image"><img src="${escapeHtml(profile.avatar_url)}" alt="${escapeHtml(name)}" /></div>`;
+          }
+          return `<div class="forum-post-avatar ${avatarColorClass(name)}">${escapeHtml(initial)}</div>`;
         }
 
         // Render
@@ -197,6 +213,7 @@
         // OP
         document.getElementById('threadOp').innerHTML = `
           <header class="forum-post-head">
+            ${renderPostAvatar(nameMap[thread.author_id], opAuthor)}
             <div class="forum-post-author">
               <div class="forum-post-author-name">${escapeHtml(opAuthor)}</div>
               <div class="forum-post-author-stats">${nameMap[thread.author_id]?.post_count ?? 0} posts</div>
@@ -226,6 +243,7 @@
             return `
               <li class="forum-post forum-post-reply">
                 <header class="forum-post-head">
+                  ${renderPostAvatar(nameMap[r.author_id], author)}
                   <div class="forum-post-author">
                     <div class="forum-post-author-name">${escapeHtml(author)}</div>
                     <div class="forum-post-author-stats">${stats} posts</div>
@@ -254,6 +272,13 @@
             document.getElementById('replyLocked').innerHTML = '<p class="text-muted">Your account is suspended from posting.</p>';
             document.getElementById('replyLocked').style.display = 'block';
           } else {
+            // Render user's own avatar above the reply form
+            const replyHeading = document.querySelector('#replyBox .detail-subhead');
+            if (replyHeading) {
+              const myAvatar = renderPostAvatar(prof, prof.display_name);
+              replyHeading.innerHTML = `${myAvatar}<span>Reply as <strong>${escapeHtml(prof.display_name)}</strong></span>`;
+              replyHeading.classList.add('forum-reply-heading');
+            }
             document.getElementById('replyBox').style.display = 'block';
             wireReplyToolbar();
           }
