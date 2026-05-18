@@ -64,9 +64,25 @@
         <!-- Email -->
         <div class="settings-field">
           <div class="settings-field-label">Email</div>
-          <div class="settings-field-row">
+          <div class="settings-field-row" id="emailViewRow">
             <div class="settings-field-value" id="currentEmail">…</div>
-            <span class="settings-field-readonly">read-only</span>
+            <button class="btn-secondary btn-inline" id="editEmailBtn" type="button">Change email</button>
+          </div>
+          <div class="settings-field-edit settings-password-form" id="emailEditRow" style="display:none">
+            <div class="form-group">
+              <label class="form-label" for="emailNew">New email</label>
+              <input id="emailNew" type="email" class="form-input" autocomplete="email" />
+              <p class="form-hint">We'll send a confirmation link. Your current email stays active until you confirm.</p>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="emailPwVerify">Current password</label>
+              <input id="emailPwVerify" type="password" class="form-input" autocomplete="current-password" />
+            </div>
+            <div id="emailAlert" class="alert" role="alert"></div>
+            <div class="settings-field-edit-actions">
+              <button class="btn-secondary btn-inline" id="emailCancelBtn" type="button">Cancel</button>
+              <button class="btn-primary btn-inline" id="emailSaveBtn" type="button">Send confirmation</button>
+            </div>
           </div>
         </div>
       </section>
@@ -115,13 +131,6 @@
           <button class="btn-secondary" id="signOutBtn" type="button">Sign out</button>
         </div>
         <div class="settings-soon-list">
-          <div class="settings-soon-row">
-            <div>
-              <strong>Change email</strong>
-              <p class="text-muted text-small">Update your account email address.</p>
-            </div>
-            <span class="settings-field-readonly">soon</span>
-          </div>
           <div class="settings-soon-row">
             <div>
               <strong>Notifications</strong>
@@ -184,6 +193,14 @@
       const pwConfirm = document.getElementById('pwConfirm');
       const pwAlert = document.getElementById('pwAlert');
       const pwSaveBtn = document.getElementById('pwSaveBtn');
+
+      // Email
+      const emailViewRow = document.getElementById('emailViewRow');
+      const emailEditRow = document.getElementById('emailEditRow');
+      const emailNew = document.getElementById('emailNew');
+      const emailPwVerify = document.getElementById('emailPwVerify');
+      const emailAlert = document.getElementById('emailAlert');
+      const emailSaveBtn = document.getElementById('emailSaveBtn');
 
       // Initial values
       currentNameEl.textContent = profile.display_name;
@@ -459,6 +476,107 @@
         el.addEventListener('keydown', (e) => {
           if (e.key === 'Enter') pwSaveBtn.click();
           else if (e.key === 'Escape') closePwEdit();
+        });
+      });
+
+      // ============================================================
+      // Email change
+      // ============================================================
+      const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      function openEmailEdit() {
+        emailNew.value = '';
+        emailPwVerify.value = '';
+        clearAlert(emailAlert);
+        emailViewRow.style.display = 'none';
+        emailEditRow.style.display = '';
+        setTimeout(() => emailNew.focus(), 30);
+      }
+      function closeEmailEdit() {
+        emailViewRow.style.display = '';
+        emailEditRow.style.display = 'none';
+        clearAlert(emailAlert);
+        emailNew.value = '';
+        emailPwVerify.value = '';
+        emailNew.disabled = false;
+        emailPwVerify.disabled = false;
+        emailSaveBtn.disabled = false;
+        emailSaveBtn.style.display = '';
+        emailSaveBtn.textContent = 'Send confirmation';
+        document.getElementById('emailCancelBtn').textContent = 'Cancel';
+      }
+      document.getElementById('editEmailBtn').addEventListener('click', openEmailEdit);
+      document.getElementById('emailCancelBtn').addEventListener('click', closeEmailEdit);
+
+      emailSaveBtn.addEventListener('click', async () => {
+        clearAlert(emailAlert);
+        const newEmail = emailNew.value.trim().toLowerCase();
+        const current = emailPwVerify.value;
+
+        if (!newEmail) {
+          showAlert('Enter the new email address.', 'error', emailAlert);
+          return;
+        }
+        if (!EMAIL_REGEX.test(newEmail)) {
+          showAlert("That doesn't look like a valid email.", 'error', emailAlert);
+          return;
+        }
+        if (newEmail === (user.email || '').toLowerCase()) {
+          showAlert("That's already your email.", 'error', emailAlert);
+          return;
+        }
+        if (!current) {
+          showAlert('Enter your current password to confirm.', 'error', emailAlert);
+          return;
+        }
+
+        emailSaveBtn.disabled = true;
+        emailSaveBtn.textContent = 'Verifying…';
+
+        // Step 1: verify current password
+        const { error: verifyErr } = await supabase.auth.signInWithPassword({
+          email: user.email,
+          password: current,
+        });
+        if (verifyErr) {
+          emailSaveBtn.disabled = false;
+          emailSaveBtn.textContent = 'Send confirmation';
+          showAlert('Current password is incorrect.', 'error', emailAlert);
+          emailPwVerify.focus();
+          return;
+        }
+
+        // Step 2: request email change. Supabase sends a confirmation link
+        // to the new address (and, if "Secure email change" is enabled in
+        // the dashboard, also to the old address). The change is NOT
+        // applied until the link is clicked.
+        emailSaveBtn.textContent = 'Sending…';
+        const { error: updateErr } = await supabase.auth.updateUser({ email: newEmail });
+        emailSaveBtn.disabled = false;
+        emailSaveBtn.textContent = 'Send confirmation';
+
+        if (updateErr) {
+          showAlert(updateErr.message || 'Failed to request email change.', 'error', emailAlert);
+          return;
+        }
+
+        // Stay in the form, show the confirmation message clearly. Don't
+        // close the row — the user needs to understand the next step.
+        emailNew.disabled = true;
+        emailPwVerify.disabled = true;
+        emailSaveBtn.style.display = 'none';
+        document.getElementById('emailCancelBtn').textContent = 'Close';
+        showAlert(
+          `Check ${newEmail} for a confirmation link. Your current email stays active until you confirm.`,
+          'success',
+          emailAlert,
+        );
+      });
+
+      [emailNew, emailPwVerify].forEach((el) => {
+        el.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' && !emailSaveBtn.disabled) emailSaveBtn.click();
+          else if (e.key === 'Escape') closeEmailEdit();
         });
       });
 
