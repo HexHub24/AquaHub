@@ -86,15 +86,31 @@
         const cats = catsRes.data || [];
         const recent = recentRes.data || [];
 
-        // Resolve author display names + thread counts per category in one extra query
+        // Resolve author display names + avatars
         const authorIds = [...new Set(recent.map((t) => t.author_id).filter(Boolean))];
-        let authorNameMap = {};
+        let authorMap = {};
         if (authorIds.length) {
           const { data: profs } = await supabase
             .from('forum_user_profiles')
-            .select('user_id, display_name')
+            .select('user_id, display_name, avatar_url')
             .in('user_id', authorIds);
-          (profs || []).forEach((p) => { authorNameMap[p.user_id] = p.display_name; });
+          (profs || []).forEach((p) => { authorMap[p.user_id] = p; });
+        }
+
+        // Avatar helpers — small version for thread rows
+        function avatarColorClass(seed) {
+          if (!seed) return 'avatar-c0';
+          let h = 0;
+          for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
+          return `avatar-c${Math.abs(h) % 8}`;
+        }
+        function renderRowAvatar(profile, fallbackName) {
+          const name = profile?.display_name || fallbackName || 'Someone';
+          const initial = name.trim().charAt(0).toUpperCase() || '?';
+          if (profile?.avatar_url) {
+            return `<span class="forum-row-avatar has-image"><img src="${escapeHtml(profile.avatar_url)}" alt="" /></span>`;
+          }
+          return `<span class="forum-row-avatar ${avatarColorClass(name)}">${escapeHtml(initial)}</span>`;
         }
 
         // Count threads per category (currently unused but kept for future use)
@@ -172,7 +188,8 @@
           emptyEl.style.display = 'none';
           recentEl.innerHTML = recent.map((t) => {
             const cat = cats.find((c) => c.id === t.category_id);
-            const authorName = authorNameMap[t.author_id] || 'Someone';
+            const authorProfile = authorMap[t.author_id];
+            const authorName = authorProfile?.display_name || 'Someone';
             return `
               <li class="forum-thread-row">
                 <a href="/forum-thread.html?id=${t.id}" class="forum-thread-link">
@@ -180,7 +197,7 @@
                     <div class="forum-thread-title">${escapeHtml(t.title)}</div>
                     <div class="forum-thread-meta">
                       <span class="forum-category-pill">${escapeHtml(cat?.name || 'Category')}</span>
-                      <span>by <strong>${escapeHtml(authorName)}</strong></span>
+                      <span class="forum-thread-author">${renderRowAvatar(authorProfile, authorName)}<span>by <strong>${escapeHtml(authorName)}</strong></span></span>
                       <span title="${fullTime(t.last_reply_at)}">${timeAgo(t.last_reply_at)}</span>
                     </div>
                   </div>
