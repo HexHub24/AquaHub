@@ -21,12 +21,29 @@
 
       <div id="settingsAlert" class="alert" role="alert"></div>
 
-      <!-- ============ Account section ============ -->
+      <!-- ============ Profile ============ -->
       <section class="card settings-card">
         <div class="settings-section-head">
-          <h2 class="settings-section-title">Account</h2>
+          <h2 class="settings-section-title">Profile</h2>
         </div>
 
+        <!-- Avatar -->
+        <div class="settings-field">
+          <div class="settings-field-label">Profile picture</div>
+          <div class="settings-avatar-row">
+            <div class="settings-avatar-preview" id="avatarPreview">
+              <!-- populated by JS: either <img> or a colored initial -->
+            </div>
+            <div class="settings-avatar-actions">
+              <input id="avatarFileInput" type="file" accept="image/jpeg,image/png,image/webp" style="display:none" />
+              <button class="btn-primary btn-inline" id="avatarUploadBtn" type="button">Upload new photo</button>
+              <button class="btn-secondary btn-inline" id="avatarRemoveBtn" type="button" style="display:none">Remove</button>
+              <p class="form-hint" id="avatarHint">JPG, PNG, or WebP. We'll crop and resize to 256×256.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Display name -->
         <div class="settings-field">
           <div class="settings-field-label">Display name</div>
           <div class="settings-field-row" id="nameViewRow">
@@ -44,6 +61,7 @@
           </div>
         </div>
 
+        <!-- Email -->
         <div class="settings-field">
           <div class="settings-field-label">Email</div>
           <div class="settings-field-row">
@@ -51,22 +69,56 @@
             <span class="settings-field-readonly">read-only</span>
           </div>
         </div>
+      </section>
+
+      <!-- ============ Security ============ -->
+      <section class="card settings-card">
+        <div class="settings-section-head">
+          <h2 class="settings-section-title">Security</h2>
+        </div>
 
         <div class="settings-field">
-          <button class="btn-secondary" id="signOutBtn" type="button">Sign out</button>
+          <div class="settings-field-label">Password</div>
+          <div class="settings-field-row" id="pwViewRow">
+            <div class="settings-field-value">••••••••</div>
+            <button class="btn-secondary btn-inline" id="editPwBtn" type="button">Change password</button>
+          </div>
+          <div class="settings-field-edit settings-password-form" id="pwEditRow" style="display:none">
+            <div class="form-group">
+              <label class="form-label" for="pwCurrent">Current password</label>
+              <input id="pwCurrent" type="password" class="form-input" autocomplete="current-password" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="pwNew">New password</label>
+              <input id="pwNew" type="password" class="form-input" autocomplete="new-password" minlength="8" />
+              <p class="form-hint">At least 8 characters.</p>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="pwConfirm">Confirm new password</label>
+              <input id="pwConfirm" type="password" class="form-input" autocomplete="new-password" minlength="8" />
+            </div>
+            <div id="pwAlert" class="alert" role="alert"></div>
+            <div class="settings-field-edit-actions">
+              <button class="btn-secondary btn-inline" id="pwCancelBtn" type="button">Cancel</button>
+              <button class="btn-primary btn-inline" id="pwSaveBtn" type="button">Update password</button>
+            </div>
+          </div>
         </div>
       </section>
 
-      <!-- ============ Coming soon ============ -->
+      <!-- ============ Account ============ -->
       <section class="card settings-card">
         <div class="settings-section-head">
-          <h2 class="settings-section-title">Coming soon</h2>
+          <h2 class="settings-section-title">Account</h2>
+        </div>
+        <div class="settings-field">
+          <button class="btn-secondary" id="signOutBtn" type="button">Sign out</button>
         </div>
         <div class="settings-soon-list">
           <div class="settings-soon-row">
             <div>
-              <strong>Profile picture</strong>
-              <p class="text-muted text-small">Upload a custom avatar.</p>
+              <strong>Change email</strong>
+              <p class="text-muted text-small">Update your account email address.</p>
             </div>
             <span class="settings-field-readonly">soon</span>
           </div>
@@ -74,13 +126,6 @@
             <div>
               <strong>Notifications</strong>
               <p class="text-muted text-small">Pick what you want to be notified about.</p>
-            </div>
-            <span class="settings-field-readonly">soon</span>
-          </div>
-          <div class="settings-soon-row">
-            <div>
-              <strong>Change password</strong>
-              <p class="text-muted text-small">Reset or rotate your account password.</p>
             </div>
             <span class="settings-field-readonly">soon</span>
           </div>
@@ -99,95 +144,210 @@
       import { supabase, requireAuth } from '/lib/supabase.js';
       import { mountTopNav } from '/lib/topnav.js';
       import { validateDisplayName, isDisplayNameAvailable, setMyDisplayName, getMyProfile } from '/lib/profiles.js';
+      import { uploadAvatar, deleteAvatar, AvatarValidationError } from '/lib/avatar-upload.js';
 
       const user = await requireAuth();
       await mountTopNav('settings');
       if (!user) throw new Error('not authenticated');
 
-      // ---- Load current state ----
+      // ---- Load profile ----
       const profile = await getMyProfile(user.id);
-
-      // If they somehow don't have a profile, kick them to welcome
       if (!profile?.display_name) {
         window.location.href = '/welcome.html';
         throw new Error('no display name');
       }
 
+      // ---- Refs ----
+      const alertEl = document.getElementById('settingsAlert');
       const currentNameEl = document.getElementById('currentName');
       const currentEmailEl = document.getElementById('currentEmail');
-      const alertEl = document.getElementById('settingsAlert');
 
+      // Display-name editing
       const nameViewRow = document.getElementById('nameViewRow');
       const nameEditRow = document.getElementById('nameEditRow');
       const nameInput = document.getElementById('nameInput');
       const nameHint = document.getElementById('nameHint');
       const nameSaveBtn = document.getElementById('nameSaveBtn');
-      const editNameBtn = document.getElementById('editNameBtn');
-      const nameCancelBtn = document.getElementById('nameCancelBtn');
 
+      // Avatar
+      const avatarPreview = document.getElementById('avatarPreview');
+      const avatarFileInput = document.getElementById('avatarFileInput');
+      const avatarUploadBtn = document.getElementById('avatarUploadBtn');
+      const avatarRemoveBtn = document.getElementById('avatarRemoveBtn');
+      const avatarHint = document.getElementById('avatarHint');
+
+      // Password
+      const pwViewRow = document.getElementById('pwViewRow');
+      const pwEditRow = document.getElementById('pwEditRow');
+      const pwCurrent = document.getElementById('pwCurrent');
+      const pwNew = document.getElementById('pwNew');
+      const pwConfirm = document.getElementById('pwConfirm');
+      const pwAlert = document.getElementById('pwAlert');
+      const pwSaveBtn = document.getElementById('pwSaveBtn');
+
+      // Initial values
       currentNameEl.textContent = profile.display_name;
       currentEmailEl.textContent = user.email;
 
-      function showAlert(msg, type = 'error') {
-        alertEl.textContent = msg;
-        alertEl.className = `alert show alert-${type}`;
-        if (type === 'success') setTimeout(() => { alertEl.className = 'alert'; }, 3000);
+      function escapeHtml(s) {
+        if (s === null || s === undefined) return '';
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
       }
-      function clearAlert() {
-        alertEl.className = 'alert';
-        alertEl.textContent = '';
+      function showAlert(msg, type = 'error', el = alertEl) {
+        el.textContent = msg;
+        el.className = `alert show alert-${type}`;
+        if (type === 'success') setTimeout(() => { el.className = 'alert'; }, 3000);
       }
-      function setHint(text, className = '') {
-        nameHint.textContent = text;
-        nameHint.className = `form-hint ${className}`;
+      function clearAlert(el = alertEl) {
+        el.className = 'alert';
+        el.textContent = '';
+      }
+      function setHint(el, text, className = '') {
+        el.textContent = text;
+        el.className = `form-hint ${className}`;
       }
 
-      function openEdit() {
+      // ============================================================
+      // Avatar render + handlers
+      // ============================================================
+      function avatarColorClass(seed) {
+        if (!seed) return 'avatar-c0';
+        let h = 0;
+        for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
+        return `avatar-c${Math.abs(h) % 8}`;
+      }
+      function avatarInitial(name, email) {
+        const source = (name || email || '?').trim();
+        return source.charAt(0).toUpperCase();
+      }
+
+      function renderAvatar() {
+        const url = profile.avatar_url;
+        avatarPreview.innerHTML = '';
+        if (url) {
+          avatarPreview.className = 'settings-avatar-preview has-image';
+          const img = document.createElement('img');
+          img.src = url;
+          img.alt = profile.display_name;
+          avatarPreview.appendChild(img);
+          avatarRemoveBtn.style.display = '';
+        } else {
+          const color = avatarColorClass(profile.display_name || user.email);
+          avatarPreview.className = `settings-avatar-preview settings-avatar-letter ${color}`;
+          avatarPreview.textContent = avatarInitial(profile.display_name, user.email);
+          avatarRemoveBtn.style.display = 'none';
+        }
+      }
+      renderAvatar();
+
+      avatarUploadBtn.addEventListener('click', () => avatarFileInput.click());
+
+      avatarFileInput.addEventListener('change', async () => {
+        const file = avatarFileInput.files?.[0];
+        avatarFileInput.value = ''; // allow re-picking the same file later
+        if (!file) return;
+
+        avatarUploadBtn.disabled = true;
+        avatarRemoveBtn.disabled = true;
+        setHint(avatarHint, 'Uploading…');
+
+        try {
+          const url = await uploadAvatar(file, user.id);
+          // Persist URL on profile
+          const { error } = await supabase
+            .from('forum_user_profiles')
+            .update({ avatar_url: url })
+            .eq('user_id', user.id);
+          if (error) throw error;
+
+          profile.avatar_url = url;
+          renderAvatar();
+          setHint(avatarHint, '✓ Avatar updated. Refreshing…', 'form-hint-success');
+          // Reload so the topnav avatar updates everywhere
+          setTimeout(() => window.location.reload(), 700);
+        } catch (err) {
+          if (err instanceof AvatarValidationError) {
+            setHint(avatarHint, err.message, 'form-hint-error');
+          } else {
+            setHint(avatarHint, `Upload failed: ${err.message}`, 'form-hint-error');
+          }
+        } finally {
+          avatarUploadBtn.disabled = false;
+          avatarRemoveBtn.disabled = false;
+        }
+      });
+
+      avatarRemoveBtn.addEventListener('click', async () => {
+        if (!confirm('Remove your avatar?')) return;
+        avatarUploadBtn.disabled = true;
+        avatarRemoveBtn.disabled = true;
+        setHint(avatarHint, 'Removing…');
+        try {
+          await deleteAvatar(user.id);
+          const { error } = await supabase
+            .from('forum_user_profiles')
+            .update({ avatar_url: null })
+            .eq('user_id', user.id);
+          if (error) throw error;
+          profile.avatar_url = null;
+          renderAvatar();
+          setHint(avatarHint, '✓ Avatar removed. Refreshing…', 'form-hint-success');
+          setTimeout(() => window.location.reload(), 700);
+        } catch (err) {
+          setHint(avatarHint, `Failed: ${err.message}`, 'form-hint-error');
+        } finally {
+          avatarUploadBtn.disabled = false;
+          avatarRemoveBtn.disabled = false;
+        }
+      });
+
+      // ============================================================
+      // Display name editing
+      // ============================================================
+      function openNameEdit() {
         nameInput.value = profile.display_name;
-        setHint('2–30 characters. Letters, numbers, spaces, _ . - only.');
+        setHint(nameHint, '2–30 characters. Letters, numbers, spaces, _ . - only.');
         nameSaveBtn.disabled = true;
         nameViewRow.style.display = 'none';
         nameEditRow.style.display = '';
         setTimeout(() => { nameInput.focus(); nameInput.select(); }, 30);
       }
-      function closeEdit() {
+      function closeNameEdit() {
         nameViewRow.style.display = '';
         nameEditRow.style.display = 'none';
         clearAlert();
       }
+      document.getElementById('editNameBtn').addEventListener('click', openNameEdit);
+      document.getElementById('nameCancelBtn').addEventListener('click', closeNameEdit);
 
-      editNameBtn.addEventListener('click', openEdit);
-      nameCancelBtn.addEventListener('click', closeEdit);
-
-      let checkTimeout;
+      let nameCheckTimeout;
       nameInput.addEventListener('input', () => {
         const val = nameInput.value;
         clearAlert();
         nameSaveBtn.disabled = true;
-
-        // If unchanged, no need to check
         if (val === profile.display_name) {
-          setHint('That\'s your current name.');
+          setHint(nameHint, "That's your current name.");
           return;
         }
         const v = validateDisplayName(val);
         if (!v.valid) {
-          setHint(v.error, 'form-hint-error');
+          setHint(nameHint, v.error, 'form-hint-error');
           return;
         }
-        setHint('Checking availability…');
-        clearTimeout(checkTimeout);
-        checkTimeout = setTimeout(async () => {
+        setHint(nameHint, 'Checking availability…');
+        clearTimeout(nameCheckTimeout);
+        nameCheckTimeout = setTimeout(async () => {
           try {
             const available = await isDisplayNameAvailable(val);
             if (available) {
-              setHint(`✓ "${val}" is available.`, 'form-hint-success');
+              setHint(nameHint, `✓ "${val}" is available.`, 'form-hint-success');
               nameSaveBtn.disabled = false;
             } else {
-              setHint(`"${val}" is taken.`, 'form-hint-error');
+              setHint(nameHint, `"${val}" is taken.`, 'form-hint-error');
             }
           } catch (e) {
-            setHint(`Couldn't check: ${e.message}`, 'form-hint-error');
+            setHint(nameHint, `Couldn't check: ${e.message}`, 'form-hint-error');
           }
         }, 350);
       });
@@ -205,18 +365,106 @@
           if (!result.taken) nameSaveBtn.disabled = false;
           return;
         }
-        // Update local state + UI
         profile.display_name = val;
         currentNameEl.textContent = val;
-        closeEdit();
+        closeNameEdit();
         showAlert('Display name updated.', 'success');
       });
 
       nameInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !nameSaveBtn.disabled) nameSaveBtn.click();
-        else if (e.key === 'Escape') closeEdit();
+        else if (e.key === 'Escape') closeNameEdit();
       });
 
+      // ============================================================
+      // Password change
+      // ============================================================
+      function openPwEdit() {
+        pwCurrent.value = '';
+        pwNew.value = '';
+        pwConfirm.value = '';
+        clearAlert(pwAlert);
+        pwViewRow.style.display = 'none';
+        pwEditRow.style.display = '';
+        setTimeout(() => pwCurrent.focus(), 30);
+      }
+      function closePwEdit() {
+        pwViewRow.style.display = '';
+        pwEditRow.style.display = 'none';
+        clearAlert(pwAlert);
+        pwCurrent.value = '';
+        pwNew.value = '';
+        pwConfirm.value = '';
+      }
+      document.getElementById('editPwBtn').addEventListener('click', openPwEdit);
+      document.getElementById('pwCancelBtn').addEventListener('click', closePwEdit);
+
+      pwSaveBtn.addEventListener('click', async () => {
+        clearAlert(pwAlert);
+        const current = pwCurrent.value;
+        const next = pwNew.value;
+        const confirmVal = pwConfirm.value;
+
+        if (!current || !next || !confirmVal) {
+          showAlert('Fill in all three fields.', 'error', pwAlert);
+          return;
+        }
+        if (next.length < 8) {
+          showAlert('New password must be at least 8 characters.', 'error', pwAlert);
+          return;
+        }
+        if (next !== confirmVal) {
+          showAlert("Passwords don't match.", 'error', pwAlert);
+          pwConfirm.focus();
+          return;
+        }
+        if (next === current) {
+          showAlert('New password is the same as your current one.', 'error', pwAlert);
+          return;
+        }
+
+        pwSaveBtn.disabled = true;
+        pwSaveBtn.textContent = 'Verifying…';
+
+        // Step 1: re-verify current password by signing in again.
+        // (Supabase doesn't enforce current-password checks on updateUser
+        // by default, but users expect it.)
+        const { error: verifyErr } = await supabase.auth.signInWithPassword({
+          email: user.email,
+          password: current,
+        });
+        if (verifyErr) {
+          pwSaveBtn.disabled = false;
+          pwSaveBtn.textContent = 'Update password';
+          showAlert('Current password is incorrect.', 'error', pwAlert);
+          pwCurrent.focus();
+          return;
+        }
+
+        // Step 2: update password
+        pwSaveBtn.textContent = 'Updating…';
+        const { error: updateErr } = await supabase.auth.updateUser({ password: next });
+        pwSaveBtn.disabled = false;
+        pwSaveBtn.textContent = 'Update password';
+
+        if (updateErr) {
+          showAlert(`Failed: ${updateErr.message}`, 'error', pwAlert);
+          return;
+        }
+        closePwEdit();
+        showAlert('Password updated.', 'success');
+      });
+
+      [pwCurrent, pwNew, pwConfirm].forEach((el) => {
+        el.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') pwSaveBtn.click();
+          else if (e.key === 'Escape') closePwEdit();
+        });
+      });
+
+      // ============================================================
+      // Sign out
+      // ============================================================
       document.getElementById('signOutBtn').addEventListener('click', async () => {
         await supabase.auth.signOut();
         window.location.href = '/login.html';
