@@ -7,111 +7,514 @@
     <title>Dashboard — AquaHub</title>
     <link rel="stylesheet" href="/styles.css" />
     <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" type="image/svg+xml" href="/icon.svg">
+    <link rel="apple-touch-icon" href="/icon-180.png">
   </head>
   <body class="app-body">
     <div id="topNavRoot"></div>
 
     <main class="app-page">
-      <header class="app-content-head">
-        <h1 class="page-title">Dashboard</h1>
+      <header class="dash-head">
+        <div>
+          <h1 class="page-title" id="greeting">Welcome back</h1>
+          <p class="text-muted" id="greetingSub">Loading your tanks…</p>
+        </div>
       </header>
 
-      <section class="card welcome-card">
-        <h2 id="greeting">Welcome 👋</h2>
-        <p class="text-muted" id="greetingSub">Loading your account…</p>
+      <!-- Alerts pane -->
+      <section id="alertsSection" class="dash-alerts" style="display: none">
+        <header class="dash-alerts-head">
+          <h2><span id="alertsCount">0</span> needs your attention</h2>
+        </header>
+        <ul id="alertsList" class="dash-alerts-list"></ul>
       </section>
 
-      <h2 class="section-heading">Your aquariums</h2>
-      <div class="dashboard-grid">
-        <a class="dashboard-tile dashboard-tile-primary" href="/tanks.html">
-          <div class="dashboard-tile-icon">🐠</div>
-          <div class="dashboard-tile-title">My Tanks</div>
-          <div class="dashboard-tile-meta" id="tankCountMeta">—</div>
-        </a>
+      <!-- Tank cards grid -->
+      <section class="dash-section">
+        <header class="dash-section-head">
+          <h2>Your tanks</h2>
+          <a href="/tanks.html" class="dash-section-link">Manage tanks →</a>
+        </header>
+        <div id="tankCardsLoading" class="empty-state">Loading…</div>
+        <div id="tankCardsEmpty" class="empty-state" style="display: none">
+          <div class="empty-icon">🐠</div>
+          <h3>No tanks yet</h3>
+          <p class="text-muted">Add your first tank to start tracking parameters, livestock, and maintenance.</p>
+          <a href="/tanks.html" class="btn-primary btn-inline">+ Add a tank</a>
+        </div>
+        <div id="tankCards" class="dash-tank-grid" style="display: none"></div>
+      </section>
 
-        <a class="dashboard-tile" href="/species.html">
-          <div class="dashboard-tile-icon">🌿</div>
-          <div class="dashboard-tile-title">Species Library</div>
-          <div class="dashboard-tile-meta">Browse →</div>
-        </a>
+      <!-- Activity feed -->
+      <section class="dash-section" id="activitySection" style="display: none">
+        <header class="dash-section-head">
+          <h2>Recent activity</h2>
+        </header>
+        <ul id="activityList" class="dash-activity-list"></ul>
+      </section>
 
-        <a class="dashboard-tile" href="/bioload.html">
-          <div class="dashboard-tile-icon">📊</div>
-          <div class="dashboard-tile-title">Bioload Calculator</div>
-          <div class="dashboard-tile-meta">Plan stocking →</div>
-        </a>
-
-        <a class="dashboard-tile" href="/trends.html" id="trendsTile">
-          <div class="dashboard-tile-icon">📈</div>
-          <div class="dashboard-tile-title">Trends & Logs</div>
-          <div class="dashboard-tile-meta" id="trendsCountMeta">—</div>
-        </a>
-
-        <a class="dashboard-tile" href="/forum.html">
-          <div class="dashboard-tile-icon">💬</div>
-          <div class="dashboard-tile-title">Forum</div>
-          <div class="dashboard-tile-meta">Join the conversation →</div>
-        </a>
-
-        <a class="dashboard-tile" href="/stores.html">
-  <div class="dashboard-tile-icon">📍</div>
-  <div class="dashboard-tile-title">LFS Finder</div>
-  <div class="dashboard-tile-meta">Find & rate local stores</div>
-</a>
-      </div>
+      <!-- Small nav strip -->
+      <section class="dash-section">
+        <header class="dash-section-head">
+          <h2>Tools</h2>
+        </header>
+        <div class="dash-nav-strip">
+          <a href="/species.html" class="dash-nav-pill">
+            <span class="dash-nav-icon">🌿</span>
+            <span>Species Library</span>
+          </a>
+          <a href="/bioload.html" class="dash-nav-pill">
+            <span class="dash-nav-icon">📊</span>
+            <span>Bioload Calculator</span>
+          </a>
+          <a href="/trends.html" class="dash-nav-pill">
+            <span class="dash-nav-icon">📈</span>
+            <span>Trends & Logs</span>
+          </a>
+          <a href="/forum.html" class="dash-nav-pill">
+            <span class="dash-nav-icon">💬</span>
+            <span>Forum</span>
+          </a>
+        </div>
+      </section>
     </main>
 
     <script type="module">
       import { supabase, requireAuth } from '/lib/supabase.js';
       import { mountTopNav } from '/lib/topnav.js';
       import { taskStatus } from '/lib/maintenance.js';
-      import { getMyProfile } from '/lib/profiles.js';
+      import { computeBioload } from '/lib/bioload.js';
 
       const user = await requireAuth();
       await mountTopNav('dashboard');
 
-      if (user) {
-        const profile = await getMyProfile(user.id);
-        const name = profile?.display_name || user.email;
-        document.getElementById('greeting').innerHTML = `Welcome back, <strong>${name.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}</strong> 👋`;
-        document.getElementById('greetingSub').textContent = user.email;
+      // ====== Utility helpers ======
+      function escapeHtml(s) {
+        if (s === null || s === undefined) return '';
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+      }
+      function timeAgo(iso) {
+        if (!iso) return '';
+        const ms = Date.now() - new Date(iso).getTime();
+        const s = Math.floor(ms / 1000);
+        if (s < 60) return 'just now';
+        const m = Math.floor(s / 60);
+        if (m < 60) return `${m}m ago`;
+        const h = Math.floor(m / 60);
+        if (h < 24) return `${h}h ago`;
+        const d = Math.floor(h / 24);
+        if (d < 30) return `${d}d ago`;
+        const mo = Math.floor(d / 30);
+        return `${mo}mo ago`;
+      }
+      function daysAgo(iso) {
+        if (!iso) return null;
+        const ms = Date.now() - new Date(iso).getTime();
+        return Math.floor(ms / (1000 * 60 * 60 * 24));
+      }
+      function waterTypeIcon(wt) {
+        return { freshwater: '🪴', planted: '🌿', saltwater: '🐠', reef: '🪸', brackish: '🌊' }[wt] || '💧';
+      }
+      function bioloadStatusClass(pct) {
+        if (pct < 30) return 'understocked';
+        if (pct < 75) return 'comfortable';
+        if (pct < 100) return 'full';
+        if (pct < 130) return 'overstocked';
+        return 'severely-overstocked';
+      }
+      function bioloadStatusLabel(pct) {
+        if (pct < 30) return 'Understocked';
+        if (pct < 75) return 'Comfortable';
+        if (pct < 100) return 'Fully stocked';
+        if (pct < 130) return 'Overstocked';
+        return 'Severely overstocked';
+      }
+      function testAgeClass(days) {
+        if (days === null) return 'never';
+        if (days <= 7) return 'recent';
+        if (days <= 21) return 'stale';
+        return 'old';
+      }
+      function testAgeLabel(days) {
+        if (days === null) return 'No tests';
+        if (days === 0) return 'Tested today';
+        if (days === 1) return 'Tested 1d ago';
+        return `Tested ${days}d ago`;
+      }
+      function nf(n, d = 0) {
+        if (n === null || n === undefined || Number.isNaN(n)) return '—';
+        return Number(n).toFixed(d);
+      }
 
-        const { count } = await supabase
-          .from('tanks')
-          .select('*', { count: 'exact', head: true });
+      // ====== Data fetch ======
+      document.getElementById('greetingSub').textContent = `Signed in as ${user.email}`;
 
-        const meta = document.getElementById('tankCountMeta');
-        if (count === null || count === undefined) {
-          meta.textContent = 'View tanks';
-        } else if (count === 0) {
-          meta.textContent = 'Add your first tank →';
-        } else {
-          meta.textContent = `${count} ${count === 1 ? 'tank' : 'tanks'} →`;
+      const [
+        tanksRes,
+        livestockRes,
+        testsRes,
+        tasksRes,
+        logsRes,
+        speciesRes,
+        myThreadsRes,
+      ] = await Promise.all([
+        supabase.from('tanks').select('*').order('created_at'),
+        supabase.from('livestock').select('*'),
+        supabase.from('water_tests').select('*')
+          .gte('test_date', new Date(Date.now() - 30 * 86400 * 1000).toISOString())
+          .order('test_date', { ascending: false }),
+        supabase.from('maintenance_tasks').select('*').eq('is_active', true),
+        supabase.from('maintenance_logs').select('*')
+          .gte('done_at', new Date(Date.now() - 30 * 86400 * 1000).toISOString())
+          .order('done_at', { ascending: false }),
+        supabase.from('species').select('id, common_name, scientific_name, species_type, water_type, bioload_score, nitrate_offset_per_day, max_size_inches, diet, max_nitrate'),
+        supabase.from('forum_threads').select('id, title, author_id, reply_count, last_reply_at')
+          .eq('author_id', user.id)
+          .eq('is_hidden', false),
+      ]);
+
+      const tanks = tanksRes.data || [];
+      const livestock = livestockRes.data || [];
+      const tests = testsRes.data || [];
+      const tasks = tasksRes.data || [];
+      const logs = logsRes.data || [];
+      const species = speciesRes.data || [];
+      const myThreads = myThreadsRes.data || [];
+
+      // Fetch recent replies to my threads (cross-domain forum activity)
+      let forumReplies = [];
+      if (myThreads.length) {
+        const myThreadIds = myThreads.map((t) => t.id);
+        const repliesCutoff = new Date(Date.now() - 30 * 86400 * 1000).toISOString();
+        const { data: replies } = await supabase
+          .from('forum_replies')
+          .select('id, thread_id, author_id, created_at')
+          .in('thread_id', myThreadIds)
+          .neq('author_id', user.id)  // replies from others, not my own
+          .gte('created_at', repliesCutoff)
+          .order('created_at', { ascending: false })
+          .limit(20);
+        forumReplies = replies || [];
+      }
+
+      // Build indexes
+      const speciesById = {};
+      for (const s of species) speciesById[s.id] = s;
+      const livestockByTank = {};
+      for (const ls of livestock) {
+        if (!livestockByTank[ls.tank_id]) livestockByTank[ls.tank_id] = [];
+        livestockByTank[ls.tank_id].push(ls);
+      }
+      const testsByTank = {};
+      for (const t of tests) {
+        if (!testsByTank[t.tank_id]) testsByTank[t.tank_id] = [];
+        testsByTank[t.tank_id].push(t);
+      }
+      const tasksByTank = {};
+      for (const t of tasks) {
+        if (!tasksByTank[t.tank_id]) tasksByTank[t.tank_id] = [];
+        tasksByTank[t.tank_id].push(t);
+      }
+      const threadsById = {};
+      for (const t of myThreads) threadsById[t.id] = t;
+      const tankById = {};
+      for (const t of tanks) tankById[t.id] = t;
+
+      // ====== Compute per-tank state ======
+      const tankState = tanks.map((tank) => {
+        const tankLivestock = livestockByTank[tank.id] || [];
+        const tankTests = testsByTank[tank.id] || [];
+        const tankTasks = tasksByTank[tank.id] || [];
+
+        // Attach species data to each livestock item (bioload lib expects item.species)
+        const livestockWithSpecies = tankLivestock.map((ls) => ({
+          ...ls,
+          species: ls.species_id ? speciesById[ls.species_id] : null,
+        }));
+
+        // Bioload — positional args, livestock with species attached
+        let bioload = null;
+        try {
+          bioload = computeBioload(tank, livestockWithSpecies);
+        } catch (_) { /* not fatal */ }
+
+        // Maintenance status: overdue / due_soon counts
+        let overdueCount = 0, dueSoonCount = 0;
+        for (const tsk of tankTasks) {
+          const s = taskStatus(tsk);
+          if (s.status === 'overdue') overdueCount++;
+          else if (s.status === 'due_soon') dueSoonCount++;
         }
 
-        // Trends & Logs tile — surface overdue maintenance + recent activity count
-        const { data: tasks } = await supabase
-          .from('maintenance_tasks').select('*').eq('is_active', true);
-        const trendsMeta = document.getElementById('trendsCountMeta');
-        const tile = document.getElementById('trendsTile');
-        if (tasks && tasks.length) {
-          let overdue = 0, dueSoon = 0;
-          for (const t of tasks) {
-            const s = taskStatus(t);
-            if (s.status === 'overdue') overdue++;
-            else if (s.status === 'due_soon') dueSoon++;
+        // Days since last water test
+        const lastTest = tankTests[0];
+        const daysSinceTest = lastTest ? daysAgo(lastTest.test_date) : null;
+
+        // Nitrate sparkline data (last 30 days; up to 12 points)
+        const nitrateHistory = tankTests
+          .filter((t) => t.nitrate !== null && t.nitrate !== undefined)
+          .slice(0, 12)
+          .reverse()
+          .map((t) => t.nitrate);
+
+        // Species-specific nitrate ceiling for this tank
+        let strictestNitrate = null;
+        for (const ls of tankLivestock) {
+          if (ls.species_id && speciesById[ls.species_id]?.max_nitrate !== null) {
+            const cap = speciesById[ls.species_id].max_nitrate;
+            if (cap !== undefined && cap !== null) {
+              if (strictestNitrate === null || cap < strictestNitrate) strictestNitrate = cap;
+            }
           }
-          if (overdue > 0) {
-            trendsMeta.innerHTML = `<span class="tile-badge tile-badge-danger">${overdue} overdue</span>`;
-            tile.classList.add('dashboard-tile-alert');
-          } else if (dueSoon > 0) {
-            trendsMeta.innerHTML = `<span class="tile-badge tile-badge-warning">${dueSoon} due soon</span>`;
-          } else {
-            trendsMeta.textContent = 'View trends & history →';
-          }
-        } else {
-          trendsMeta.textContent = 'View trends & history →';
         }
+
+        // Cover photo — first livestock photo we find
+        const coverPhoto = tankLivestock.find((ls) => ls.photo_url)?.photo_url || null;
+
+        return {
+          tank,
+          livestock: tankLivestock,
+          tests: tankTests,
+          lastTest,
+          daysSinceTest,
+          nitrateHistory,
+          strictestNitrate,
+          tasks: tankTasks,
+          overdueCount,
+          dueSoonCount,
+          bioload,
+          coverPhoto,
+        };
+      });
+
+      // ====== Build alerts list ======
+      const alerts = [];
+      for (const st of tankState) {
+        const tankName = st.tank.name;
+        const tankId = st.tank.id;
+        const link = `/tank.html?id=${tankId}`;
+
+        // Critical: water quality (last test)
+        if (st.lastTest) {
+          const t = st.lastTest;
+          if (t.ammonia !== null && t.ammonia > 0.25) {
+            alerts.push({ level: 'critical', icon: '🚨', text: `Ammonia at ${nf(t.ammonia, 2)} ppm on ${tankName}`, link, sort: 100 });
+          }
+          if (t.nitrite !== null && t.nitrite > 0.25) {
+            alerts.push({ level: 'critical', icon: '🚨', text: `Nitrite at ${nf(t.nitrite, 2)} ppm on ${tankName}`, link, sort: 100 });
+          }
+          if (t.nitrate !== null && st.strictestNitrate !== null && t.nitrate > st.strictestNitrate) {
+            alerts.push({ level: 'critical', icon: '🚨', text: `Nitrate at ${nf(t.nitrate)} ppm exceeds species limit (${nf(st.strictestNitrate)} ppm) on ${tankName}`, link, sort: 90 });
+          }
+        }
+
+        // Bioload over 100%
+        if (st.bioload && st.bioload.percent !== undefined) {
+          const pct = st.bioload.percent;
+          if (pct >= 130) {
+            alerts.push({ level: 'critical', icon: '⚠️', text: `${tankName} severely overstocked (${nf(pct)}%)`, link, sort: 85 });
+          } else if (pct >= 100) {
+            alerts.push({ level: 'warning', icon: '⚠️', text: `${tankName} overstocked (${nf(pct)}%)`, link, sort: 60 });
+          }
+        }
+
+        // Maintenance
+        if (st.overdueCount > 0) {
+          alerts.push({
+            level: 'warning',
+            icon: '🛠️',
+            text: `${st.overdueCount} overdue ${st.overdueCount === 1 ? 'task' : 'tasks'} on ${tankName}`,
+            link, sort: 70,
+          });
+        }
+        if (st.dueSoonCount > 0) {
+          alerts.push({
+            level: 'info',
+            icon: '⏰',
+            text: `${st.dueSoonCount} ${st.dueSoonCount === 1 ? 'task' : 'tasks'} due soon on ${tankName}`,
+            link, sort: 40,
+          });
+        }
+      }
+
+      alerts.sort((a, b) => b.sort - a.sort);
+
+      if (alerts.length > 0) {
+        document.getElementById('alertsSection').style.display = '';
+        document.getElementById('alertsCount').textContent = alerts.length;
+        document.getElementById('alertsList').innerHTML = alerts.map((a) => `
+          <li class="dash-alert dash-alert-${a.level}">
+            <a href="${a.link}" class="dash-alert-link">
+              <span class="dash-alert-icon">${a.icon}</span>
+              <span class="dash-alert-text">${escapeHtml(a.text)}</span>
+              <span class="dash-alert-arrow">→</span>
+            </a>
+          </li>
+        `).join('');
+      }
+
+      // ====== Build tank cards ======
+      document.getElementById('tankCardsLoading').style.display = 'none';
+      if (tanks.length === 0) {
+        document.getElementById('tankCardsEmpty').style.display = '';
+      } else {
+        document.getElementById('tankCards').style.display = '';
+        document.getElementById('tankCards').innerHTML = tankState.map((st) => renderTankCard(st)).join('');
+      }
+
+      function renderTankCard(st) {
+        const tank = st.tank;
+        const livestockCount = st.livestock.reduce((sum, ls) => sum + (ls.quantity || 1), 0);
+        const wtIcon = waterTypeIcon(tank.tank_type);
+        const bioloadPct = st.bioload?.percent ?? null;
+        const bioloadStatus = bioloadPct !== null ? bioloadStatusLabel(bioloadPct) : 'No livestock';
+        const bioloadClass = bioloadPct !== null ? bioloadStatusClass(bioloadPct) : 'understocked';
+        const barWidth = bioloadPct !== null ? Math.min(100, bioloadPct) : 0;
+        const ageClass = testAgeClass(st.daysSinceTest);
+        const ageLabel = testAgeLabel(st.daysSinceTest);
+
+        const sparkline = st.nitrateHistory.length >= 2
+          ? renderSparkline(st.nitrateHistory, st.strictestNitrate)
+          : '';
+
+        const photoHtml = st.coverPhoto
+          ? `<div class="dash-tank-photo"><img src="${escapeHtml(st.coverPhoto)}" alt="" loading="lazy"></div>`
+          : `<div class="dash-tank-photo dash-tank-photo-placeholder">${wtIcon}</div>`;
+
+        // Maintenance line
+        let maintLine = '';
+        if (st.overdueCount > 0) {
+          maintLine = `<span class="dash-tank-maint dash-tank-maint-overdue">🛠️ ${st.overdueCount} overdue</span>`;
+        } else if (st.dueSoonCount > 0) {
+          maintLine = `<span class="dash-tank-maint dash-tank-maint-soon">⏰ ${st.dueSoonCount} due soon</span>`;
+        } else if (st.tasks.length > 0) {
+          maintLine = `<span class="dash-tank-maint dash-tank-maint-ok">✓ Maintenance on track</span>`;
+        }
+
+        return `
+          <a href="/tank.html?id=${tank.id}" class="dash-tank-card">
+            ${photoHtml}
+            <div class="dash-tank-body">
+              <header class="dash-tank-head">
+                <h3>${escapeHtml(tank.name)}</h3>
+                <span class="dash-tank-wt-pill">${wtIcon} ${escapeHtml(tank.tank_type || 'tank')}</span>
+              </header>
+              <div class="dash-tank-bioload">
+                <div class="dash-tank-bioload-bar">
+                  <div class="dash-tank-bioload-fill dash-bioload-${bioloadClass}" style="width: ${barWidth}%"></div>
+                </div>
+                <div class="dash-tank-bioload-text">
+                  <span class="dash-bioload-status dash-bioload-${bioloadClass}">${escapeHtml(bioloadStatus)}</span>
+                  ${bioloadPct !== null ? `<span class="dash-bioload-pct">${nf(bioloadPct)}%</span>` : ''}
+                </div>
+              </div>
+              <div class="dash-tank-stats">
+                <span class="dash-tank-stat">${livestockCount} ${livestockCount === 1 ? 'animal' : 'animals'}</span>
+                <span class="dash-tank-stat dash-tank-stat-age dash-age-${ageClass}">${ageLabel}</span>
+              </div>
+              ${maintLine ? `<div class="dash-tank-maint-row">${maintLine}</div>` : ''}
+              ${sparkline ? `<div class="dash-tank-sparkline">
+                <div class="dash-tank-sparkline-label">Nitrate trend (last ${st.nitrateHistory.length})</div>
+                ${sparkline}
+              </div>` : ''}
+            </div>
+          </a>
+        `;
+      }
+
+      function renderSparkline(values, ceiling) {
+        if (!values || values.length < 2) return '';
+        const max = Math.max(...values, ceiling || 0, 1);
+        const min = 0;
+        const W = 160, H = 32, PAD = 2;
+        const stepX = (W - 2 * PAD) / (values.length - 1);
+        const points = values.map((v, i) => {
+          const x = PAD + i * stepX;
+          const y = H - PAD - ((v - min) / (max - min)) * (H - 2 * PAD);
+          return `${x.toFixed(1)},${y.toFixed(1)}`;
+        }).join(' ');
+        const last = values[values.length - 1];
+        const lastY = H - PAD - ((last - min) / (max - min)) * (H - 2 * PAD);
+        const lastX = PAD + (values.length - 1) * stepX;
+        // Ceiling line
+        let ceilingLine = '';
+        if (ceiling !== null && ceiling > 0 && ceiling <= max) {
+          const cy = H - PAD - ((ceiling - min) / (max - min)) * (H - 2 * PAD);
+          ceilingLine = `<line x1="${PAD}" y1="${cy.toFixed(1)}" x2="${W - PAD}" y2="${cy.toFixed(1)}" stroke="var(--danger)" stroke-width="1" stroke-dasharray="2,2" opacity="0.6"/>`;
+        }
+        const overCeiling = ceiling !== null && last > ceiling;
+        return `
+          <svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" class="dash-sparkline">
+            ${ceilingLine}
+            <polyline points="${points}" fill="none" stroke="var(--primary)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="2.5" fill="${overCeiling ? 'var(--danger)' : 'var(--primary)'}"/>
+          </svg>
+        `;
+      }
+
+      // ====== Build activity feed ======
+      const activity = [];
+      for (const t of tests.slice(0, 20)) {
+        activity.push({
+          ts: t.test_date,
+          icon: '💧',
+          text: `Logged water test on <strong>${escapeHtml(tankById[t.tank_id]?.name || 'a tank')}</strong>`,
+          link: `/tank.html?id=${t.tank_id}`,
+        });
+      }
+      for (const lg of logs.slice(0, 20)) {
+        const tankName = tankById[lg.tank_id]?.name || 'a tank';
+        activity.push({
+          ts: lg.done_at,
+          icon: '🛠️',
+          text: `Maintenance done on <strong>${escapeHtml(tankName)}</strong>${lg.notes ? ': ' + escapeHtml(lg.notes.slice(0, 60)) : ''}`,
+          link: `/tank.html?id=${lg.tank_id}`,
+        });
+      }
+      // Recently-added livestock (created in last 30 days)
+      const livestockCutoff = Date.now() - 30 * 86400 * 1000;
+      for (const ls of livestock) {
+        if (ls.created_at && new Date(ls.created_at).getTime() > livestockCutoff) {
+          const tankName = tankById[ls.tank_id]?.name || 'a tank';
+          const speciesLabel = ls.species_id && speciesById[ls.species_id]
+            ? speciesById[ls.species_id].common_name
+            : (ls.custom_name || 'livestock');
+          activity.push({
+            ts: ls.created_at,
+            icon: '🐠',
+            text: `Added ${ls.quantity || 1} ${escapeHtml(speciesLabel)} to <strong>${escapeHtml(tankName)}</strong>`,
+            link: `/tank.html?id=${ls.tank_id}`,
+          });
+        }
+      }
+      // Forum replies to my threads
+      for (const r of forumReplies) {
+        const thread = threadsById[r.thread_id];
+        if (!thread) continue;
+        activity.push({
+          ts: r.created_at,
+          icon: '💬',
+          text: `Reply on your thread <strong>${escapeHtml(thread.title.slice(0, 60))}</strong>`,
+          link: `/forum-thread.html?id=${r.thread_id}`,
+        });
+      }
+
+      activity.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
+      const recentActivity = activity.slice(0, 10);
+
+      if (recentActivity.length > 0) {
+        document.getElementById('activitySection').style.display = '';
+        document.getElementById('activityList').innerHTML = recentActivity.map((a) => `
+          <li class="dash-activity-item">
+            <a href="${a.link}" class="dash-activity-link">
+              <span class="dash-activity-icon">${a.icon}</span>
+              <span class="dash-activity-text">${a.text}</span>
+              <span class="dash-activity-time">${timeAgo(a.ts)}</span>
+            </a>
+          </li>
+        `).join('');
       }
     </script>
   </body>
