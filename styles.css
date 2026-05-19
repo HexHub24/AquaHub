@@ -4032,3 +4032,393 @@ body.app-body.forum-page-body .forum-main {
   align-items: center;
   gap: 0;
 }
+/* ============================================================
+   AquaHub — Dashboard rebuild (Phase 7)
+   APPEND to bottom of styles.css
+   ============================================================ */
+
+/* ---------- Dashboard header ---------- */
+.dash-head {
+  margin-bottom: 24px;
+}
+
+/* ---------- Section wrapper ---------- */
+.dash-section {
+  margin-bottom: 32px;
+}
+
+.dash-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 12px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dash-section-head h2 {
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+  color: var(--text);
+}
+
+.dash-section-link {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--primary-dark);
+  text-decoration: none;
+}
+
+.dash-section-link:hover {
+  text-decoration: underline;
+}
+
+/* ---------- Alerts pane ---------- */
+.dash-alerts {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--warning);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 28px;
+  box-shadow: var(--shadow);
+}
+
+.dash-alerts-head h2 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 0 0 10px;
+  color: var(--text);
+}
+
+.dash-alerts-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dash-alert {
+  border-radius: 8px;
+}
+
+.dash-alert-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  text-decoration: none;
+  color: var(--text);
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+
+.dash-alert-link:hover {
+  background: var(--surface-raised);
+}
+
+.dash-alert-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.dash-alert-text {
+  flex: 1;
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+.dash-alert-arrow {
+  color: var(--text-subtle);
+  font-size: 0.95rem;
+}
+
+.dash-alert-critical .dash-alert-text { color: var(--danger-text); font-weight: 600; }
+.dash-alert-warning  .dash-alert-text { color: var(--warning-text); }
+.dash-alert-info     .dash-alert-text { color: var(--text-muted); }
+
+/* ---------- Tank cards grid ---------- */
+.dash-tank-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 700px) {
+  .dash-tank-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (min-width: 1100px) {
+  .dash-tank-grid { grid-template-columns: 1fr 1fr 1fr; }
+}
+
+.dash-tank-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  text-decoration: none;
+  color: var(--text);
+  transition: transform 0.1s, box-shadow 0.15s, border-color 0.15s;
+}
+
+.dash-tank-card:hover {
+  transform: translateY(-1px);
+  border-color: var(--primary);
+  box-shadow: 0 8px 24px rgba(14, 165, 233, 0.18);
+}
+
+/* Cover photo / placeholder */
+.dash-tank-photo {
+  width: 100%;
+  aspect-ratio: 16 / 7;
+  overflow: hidden;
+  background: var(--surface-sunken);
+  flex-shrink: 0;
+}
+
+.dash-tank-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.dash-tank-photo-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  background: linear-gradient(135deg, var(--primary), var(--teal));
+  color: white;
+  opacity: 0.95;
+}
+
+.dash-tank-body {
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dash-tank-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.dash-tank-head h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-tank-wt-pill {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+  text-transform: capitalize;
+  flex-shrink: 0;
+}
+
+/* Bioload bar */
+.dash-tank-bioload-bar {
+  height: 8px;
+  background: var(--surface-sunken);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 2px;
+}
+
+.dash-tank-bioload-fill {
+  height: 100%;
+  transition: width 0.3s;
+  border-radius: 999px;
+}
+
+.dash-bioload-understocked          { background: var(--info); }
+.dash-bioload-comfortable           { background: var(--success); }
+.dash-bioload-full                  { background: var(--warning); }
+.dash-bioload-overstocked           { background: var(--orange); }
+.dash-bioload-severely-overstocked  { background: var(--danger); }
+
+.dash-tank-bioload-text {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.78rem;
+  margin-top: 4px;
+}
+
+.dash-bioload-status         { font-weight: 600; }
+.dash-bioload-status.dash-bioload-understocked         { color: var(--info-text); }
+.dash-bioload-status.dash-bioload-comfortable          { color: var(--success-text); }
+.dash-bioload-status.dash-bioload-full                 { color: var(--warning-text); }
+.dash-bioload-status.dash-bioload-overstocked          { color: var(--orange-text); }
+.dash-bioload-status.dash-bioload-severely-overstocked { color: var(--danger-text); }
+
+.dash-bioload-pct {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* Tank stats row */
+.dash-tank-stats {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.dash-tank-stat {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-sunken);
+}
+
+.dash-tank-stat-age.dash-age-recent { background: #dcfce7; color: var(--success-text); }
+.dash-tank-stat-age.dash-age-stale  { background: var(--warning-bg); color: var(--warning-text); }
+.dash-tank-stat-age.dash-age-old    { background: var(--danger-bg); color: var(--danger-text); }
+.dash-tank-stat-age.dash-age-never  { background: var(--surface-sunken); color: var(--text-subtle); font-style: italic; }
+
+[data-theme="dark"] .dash-tank-stat-age.dash-age-recent { background: var(--success-bg-soft); }
+
+/* Maintenance row */
+.dash-tank-maint-row {
+  display: flex;
+  font-size: 0.78rem;
+}
+
+.dash-tank-maint {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.dash-tank-maint-overdue { color: var(--danger-text); background: var(--danger-bg); }
+.dash-tank-maint-soon    { color: var(--warning-text); background: var(--warning-bg); }
+.dash-tank-maint-ok      { color: var(--text-muted); background: var(--surface-sunken); }
+
+/* Sparkline */
+.dash-tank-sparkline {
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+
+.dash-tank-sparkline-label {
+  font-size: 0.7rem;
+  color: var(--text-subtle);
+  margin-bottom: 2px;
+}
+
+.dash-sparkline {
+  display: block;
+}
+
+/* ---------- Activity feed ---------- */
+.dash-activity-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.dash-activity-item:not(:last-child) {
+  border-bottom: 1px solid var(--border);
+}
+
+.dash-activity-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  text-decoration: none;
+  color: var(--text);
+  transition: background 0.12s;
+}
+
+.dash-activity-link:hover {
+  background: var(--surface-raised);
+}
+
+.dash-activity-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  width: 24px;
+  text-align: center;
+}
+
+.dash-activity-text {
+  flex: 1;
+  font-size: 0.88rem;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-activity-time {
+  font-size: 0.75rem;
+  color: var(--text-subtle);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+@media (max-width: 500px) {
+  .dash-activity-text { white-space: normal; }
+}
+
+/* ---------- Mini nav strip (Species/Bioload/Trends/Forum) ---------- */
+.dash-nav-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dash-nav-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--text);
+  font-size: 0.88rem;
+  font-weight: 600;
+  transition: transform 0.1s, border-color 0.15s, box-shadow 0.15s;
+}
+
+.dash-nav-pill:hover {
+  transform: translateY(-1px);
+  border-color: var(--primary);
+  box-shadow: 0 2px 10px rgba(14, 165, 233, 0.15);
+}
+
+.dash-nav-icon {
+  font-size: 1.1rem;
+}
