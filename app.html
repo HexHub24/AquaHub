@@ -54,28 +54,26 @@
         <ul id="activityList" class="dash-activity-list"></ul>
       </section>
 
-      <!-- Small nav strip -->
-      <section class="dash-section">
+      <!-- My forum activity -->
+      <section class="dash-section" id="forumFeedSection" style="display: none">
         <header class="dash-section-head">
-          <h2>Tools</h2>
+          <h2>Your forum conversations</h2>
+          <a href="/forum.html" class="dash-section-link">Browse forum →</a>
         </header>
-        <div class="dash-nav-strip">
-          <a href="/species.html" class="dash-nav-pill">
-            <span class="dash-nav-icon">🌿</span>
-            <span>Species Library</span>
-          </a>
-          <a href="/bioload.html" class="dash-nav-pill">
-            <span class="dash-nav-icon">📊</span>
-            <span>Bioload Calculator</span>
-          </a>
-          <a href="/trends.html" class="dash-nav-pill">
-            <span class="dash-nav-icon">📈</span>
-            <span>Trends & Logs</span>
-          </a>
-          <a href="/forum.html" class="dash-nav-pill">
-            <span class="dash-nav-icon">💬</span>
-            <span>Forum</span>
-          </a>
+        <ul id="forumFeedList" class="dash-activity-list"></ul>
+      </section>
+
+      <!-- Empty state when user has no forum activity -->
+      <section class="dash-section" id="forumFeedEmpty" style="display: none">
+        <header class="dash-section-head">
+          <h2>Your forum conversations</h2>
+        </header>
+        <div class="dash-forum-empty">
+          <span class="dash-forum-empty-icon">💬</span>
+          <div>
+            <p class="dash-forum-empty-text">You haven't posted in the forum yet.</p>
+            <a href="/forum.html" class="dash-section-link">Browse the forum →</a>
+          </div>
         </div>
       </section>
     </main>
@@ -197,6 +195,58 @@
           .order('created_at', { ascending: false })
           .limit(20);
         forumReplies = replies || [];
+      }
+
+      // Fetch threads I've replied in (for the forum feed below)
+      //   1. Get distinct thread_ids where I have any reply (not just last 30 days)
+      //   2. Fetch those thread rows, plus my own threads, dedup, sort by last_reply_at
+      let myRepliesThreadIds = [];
+      {
+        const { data: mineReplies } = await supabase
+          .from('forum_replies')
+          .select('thread_id')
+          .eq('author_id', user.id);
+        myRepliesThreadIds = [...new Set((mineReplies || []).map((r) => r.thread_id))];
+      }
+
+      // Build the union of (threads I authored) ∪ (threads I replied in)
+      const myThreadIdSet = new Set(myThreads.map((t) => t.id));
+      const extraThreadIds = myRepliesThreadIds.filter((id) => !myThreadIdSet.has(id));
+
+      let extraThreads = [];
+      if (extraThreadIds.length) {
+        const { data: more } = await supabase
+          .from('forum_threads')
+          .select('id, title, author_id, reply_count, last_reply_at, category_id, is_hidden')
+          .in('id', extraThreadIds)
+          .eq('is_hidden', false);
+        extraThreads = more || [];
+      }
+
+      // Also re-fetch my own threads with category_id (the earlier query didn't include it)
+      let myThreadsFull = [];
+      if (myThreads.length) {
+        const { data: full } = await supabase
+          .from('forum_threads')
+          .select('id, title, author_id, reply_count, last_reply_at, category_id, is_hidden')
+          .in('id', myThreads.map((t) => t.id))
+          .eq('is_hidden', false);
+        myThreadsFull = full || [];
+      }
+
+      const myForumThreads = [...myThreadsFull, ...extraThreads];
+
+      // Fetch categories (for displaying category label on each row)
+      let forumCategories = [];
+      if (myForumThreads.length) {
+        const catIds = [...new Set(myForumThreads.map((t) => t.category_id).filter(Boolean))];
+        if (catIds.length) {
+          const { data: cats } = await supabase
+            .from('forum_categories')
+            .select('id, name, slug, section')
+            .in('id', catIds);
+          forumCategories = cats || [];
+        }
       }
 
       // Build indexes
@@ -515,6 +565,54 @@
             </a>
           </li>
         `).join('');
+      }
+
+      // ====== Build forum feed (my threads + threads I've replied in) ======
+      const categoriesById = {};
+      for (const c of forumCategories) categoriesById[c.id] = c;
+
+      // Dedup by thread id (in case both lists share)
+      const seenThreadIds = new Set();
+      const dedupedThreads = [];
+      for (const t of myForumThreads) {
+        if (seenThreadIds.has(t.id)) continue;
+        seenThreadIds.add(t.id);
+        dedupedThreads.push(t);
+      }
+
+      // Sort by last_reply_at desc (threads with newest reply first)
+      dedupedThreads.sort((a, b) => {
+        const aT = new Date(a.last_reply_at || 0).getTime();
+        const bT = new Date(b.last_reply_at || 0).getTime();
+        return bT - aT;
+      });
+
+      const feedThreads = dedupedThreads.slice(0, 10);
+
+      if (feedThreads.length > 0) {
+        document.getElementById('forumFeedSection').style.display = '';
+        document.getElementById('forumFeedList').innerHTML = feedThreads.map((t) => {
+          const cat = categoriesById[t.category_id];
+          const isMine = t.author_id === user.id;
+          const icon = isMine ? '💬' : '↩️';
+          const role = isMine ? 'Your thread' : 'You replied';
+          const catLabel = cat ? cat.name : '';
+          const replies = t.reply_count || 0;
+          return `
+            <li class="dash-activity-item">
+              <a href="/forum-thread.html?id=${t.id}" class="dash-activity-link">
+                <span class="dash-activity-icon">${icon}</span>
+                <span class="dash-activity-text">
+                  <strong>${escapeHtml(t.title)}</strong>
+                  <span class="dash-forum-meta">${escapeHtml(role)}${catLabel ? ` · ${escapeHtml(catLabel)}` : ''} · ${replies} ${replies === 1 ? 'reply' : 'replies'}</span>
+                </span>
+                <span class="dash-activity-time">${timeAgo(t.last_reply_at)}</span>
+              </a>
+            </li>
+          `;
+        }).join('');
+      } else {
+        document.getElementById('forumFeedEmpty').style.display = '';
       }
     </script>
   </body>
