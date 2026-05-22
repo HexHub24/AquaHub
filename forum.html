@@ -189,7 +189,11 @@
           recentEl.innerHTML = recent.map((t) => {
             const cat = cats.find((c) => c.id === t.category_id);
             const authorProfile = authorMap[t.author_id];
-            const authorName = authorProfile?.display_name || 'Someone';
+            const isDeleted = !t.author_id;
+            const authorName = isDeleted ? 'Deleted user' : (authorProfile?.display_name || 'Someone');
+            const authorHtml = isDeleted
+              ? `<span class="forum-author-deleted">Deleted user</span>`
+              : `<strong>${escapeHtml(authorName)}</strong>`;
             return `
               <li class="forum-thread-row">
                 <a href="/forum-thread.html?id=${t.id}" class="forum-thread-link">
@@ -197,7 +201,7 @@
                     <div class="forum-thread-title">${escapeHtml(t.title)}</div>
                     <div class="forum-thread-meta">
                       <span class="forum-category-pill">${escapeHtml(cat?.name || 'Category')}</span>
-                      <span class="forum-thread-author">${renderRowAvatar(authorProfile, authorName)}<span>by <strong>${escapeHtml(authorName)}</strong></span></span>
+                      <span class="forum-thread-author">${renderRowAvatar(authorProfile, authorName)}<span>by ${authorHtml}</span></span>
                       <span title="${fullTime(t.last_reply_at)}">${timeAgo(t.last_reply_at)}</span>
                     </div>
                   </div>
