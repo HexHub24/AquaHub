@@ -202,9 +202,13 @@
         } else {
           titleEl.textContent = thread.title;
         }
-        const opAuthor = nameMap[thread.author_id]?.display_name || 'Someone';
+        const isOpDeleted = !thread.author_id;
+        const opAuthor = isOpDeleted ? 'Deleted user' : (nameMap[thread.author_id]?.display_name || 'Someone');
+        const opAuthorHtml = isOpDeleted
+          ? `<span class="forum-author-deleted">Deleted user</span>`
+          : `<strong>${escapeHtml(opAuthor)}</strong>`;
         document.getElementById('threadHeaderMeta').innerHTML = `
-          <span>by <strong>${escapeHtml(opAuthor)}</strong></span>
+          <span>by ${opAuthorHtml}</span>
           <span title="${fullTime(thread.created_at)}">${timeAgo(thread.created_at)}</span>
           ${thread.is_locked && !(thread.marketplace_kind && thread.marketplace_status === 'resolved') ? '<span class="forum-thread-badge">🔒 Locked</span>' : ''}
           ${thread.is_pinned ? '<span class="forum-thread-badge">📌 Pinned</span>' : ''}
@@ -215,8 +219,8 @@
           <header class="forum-post-head">
             ${renderPostAvatar(nameMap[thread.author_id], opAuthor)}
             <div class="forum-post-author">
-              <div class="forum-post-author-name">${escapeHtml(opAuthor)}</div>
-              <div class="forum-post-author-stats">${nameMap[thread.author_id]?.post_count ?? 0} posts</div>
+              <div class="forum-post-author-name ${isOpDeleted ? 'forum-author-deleted' : ''}">${escapeHtml(opAuthor)}</div>
+              <div class="forum-post-author-stats">${isOpDeleted ? '' : ((nameMap[thread.author_id]?.post_count ?? 0) + ' posts')}</div>
             </div>
             <div class="forum-post-meta" title="${fullTime(thread.created_at)}">${timeAgo(thread.created_at)}</div>
           </header>
@@ -238,15 +242,16 @@
           repliesEl.innerHTML = '<li class="text-muted">No replies yet. Be the first.</li>';
         } else {
           repliesEl.innerHTML = replies.map((r) => {
-            const author = nameMap[r.author_id]?.display_name || 'Someone';
-            const stats = nameMap[r.author_id]?.post_count ?? 0;
+            const isReplyDeleted = !r.author_id;
+            const author = isReplyDeleted ? 'Deleted user' : (nameMap[r.author_id]?.display_name || 'Someone');
+            const stats = isReplyDeleted ? '' : ((nameMap[r.author_id]?.post_count ?? 0) + ' posts');
             return `
               <li class="forum-post forum-post-reply">
                 <header class="forum-post-head">
                   ${renderPostAvatar(nameMap[r.author_id], author)}
                   <div class="forum-post-author">
-                    <div class="forum-post-author-name">${escapeHtml(author)}</div>
-                    <div class="forum-post-author-stats">${stats} posts</div>
+                    <div class="forum-post-author-name ${isReplyDeleted ? 'forum-author-deleted' : ''}">${escapeHtml(author)}</div>
+                    <div class="forum-post-author-stats">${stats}</div>
                   </div>
                   <div class="forum-post-meta" title="${fullTime(r.created_at)}">${timeAgo(r.created_at)}</div>
                 </header>
