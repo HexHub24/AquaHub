@@ -203,8 +203,19 @@
         list.style.display = '';
         list.innerHTML = threads.map((t) => {
           const authorProfile = nameMap[t.author_id];
-          const author = authorProfile?.display_name || 'Someone';
-          const lastReplyAuthor = nameMap[t.last_reply_author_id]?.display_name || author;
+          const isAuthorDeleted = !t.author_id;
+          const author = isAuthorDeleted ? 'Deleted user' : (authorProfile?.display_name || 'Someone');
+          const authorHtml = isAuthorDeleted
+            ? `<span class="forum-author-deleted">Deleted user</span>`
+            : `<strong>${escapeHtml(author)}</strong>`;
+
+          const isLastReplyDeleted = !!t.last_reply_at && !t.last_reply_author_id;
+          const lastReplyAuthor = isLastReplyDeleted
+            ? 'Deleted user'
+            : (nameMap[t.last_reply_author_id]?.display_name || author);
+          const lastReplyAuthorHtml = isLastReplyDeleted
+            ? `<span class="forum-author-deleted">Deleted user</span>`
+            : `<strong>${escapeHtml(lastReplyAuthor)}</strong>`;
           const isLastReplyFromAuthor = !t.last_reply_author_id || t.last_reply_author_id === t.author_id;
 
           // Marketplace prefix
@@ -229,10 +240,10 @@
                   </div>
                   ${mpMetaHtml ? `<div class="mp-meta-strip" style="margin: 6px 0 0;">${mpMetaHtml}</div>` : ''}
                   <div class="forum-thread-meta">
-                    <span class="forum-thread-author">${renderRowAvatar(authorProfile, author)}<span>by <strong>${escapeHtml(author)}</strong></span></span>
+                    <span class="forum-thread-author">${renderRowAvatar(authorProfile, author)}<span>by ${authorHtml}</span></span>
                     <span title="${fullTime(t.created_at)}">${timeAgo(t.created_at)}</span>
                     ${t.reply_count > 0 && !isLastReplyFromAuthor
-                      ? `<span class="text-muted">· last by <strong>${escapeHtml(lastReplyAuthor)}</strong> ${timeAgo(t.last_reply_at)}</span>`
+                      ? `<span class="text-muted">· last by ${lastReplyAuthorHtml} ${timeAgo(t.last_reply_at)}</span>`
                       : ''}
                   </div>
                 </div>
