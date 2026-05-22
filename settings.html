@@ -138,12 +138,43 @@
             </div>
             <span class="settings-field-readonly">soon</span>
           </div>
-          <div class="settings-soon-row">
-            <div>
-              <strong>Delete account</strong>
-              <p class="text-muted text-small">Permanently remove your account and all data.</p>
+        </div>
+      </section>
+
+      <!-- ============ Danger Zone ============ -->
+      <section class="settings-danger-zone">
+        <header class="settings-danger-head">
+          <h2>Danger Zone</h2>
+        </header>
+        <div class="settings-danger-body">
+          <div class="settings-danger-row" id="deleteAccountRow">
+            <div class="settings-danger-text">
+              <h3>Delete account</h3>
+              <p>Permanently delete your account, tanks, livestock, photos, water tests, and personal data. Forum posts will remain but with your name removed.</p>
             </div>
-            <span class="settings-field-readonly">soon</span>
+            <button class="btn-danger" id="deleteAccountBtn" type="button">Delete account…</button>
+          </div>
+
+          <!-- Inline confirmation form (hidden until Delete Account is clicked) -->
+          <div class="delete-confirm-form" id="deleteConfirmForm" style="display: none">
+            <p class="delete-confirm-warning">⚠️ This action cannot be undone.</p>
+            <ul class="delete-confirm-list">
+              <li><strong>Deleted permanently:</strong> your tanks, livestock, water tests, maintenance logs, photos, saved stores, store notes, settings</li>
+              <li><strong>Anonymized:</strong> your forum threads and replies remain so others can read them, but your name will show as "Deleted user"</li>
+            </ul>
+            <p id="deleteConfirmError" class="delete-confirm-error" role="alert"></p>
+            <div class="form-group">
+              <label class="form-label" for="deletePassword">Confirm your password</label>
+              <input class="form-input" id="deletePassword" type="password" autocomplete="current-password" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="deleteConfirmText">Type <strong>DELETE</strong> to confirm</label>
+              <input class="form-input form-input-mono" id="deleteConfirmText" type="text" autocomplete="off" spellcheck="false" placeholder="DELETE" />
+            </div>
+            <div class="delete-confirm-actions">
+              <button class="btn-secondary btn-inline" id="deleteCancelBtn" type="button">Cancel</button>
+              <button class="btn-danger" id="deleteConfirmBtn" type="button" disabled>Delete my account</button>
+            </div>
           </div>
         </div>
       </section>
@@ -586,6 +617,115 @@
       document.getElementById('signOutBtn').addEventListener('click', async () => {
         await supabase.auth.signOut();
         window.location.href = '/login.html';
+      });
+
+      // ============================================================
+      // Delete account flow
+      // ============================================================
+      const deleteAccountBtn = document.getElementById('deleteAccountBtn');
+      const deleteConfirmForm = document.getElementById('deleteConfirmForm');
+      const deletePasswordInput = document.getElementById('deletePassword');
+      const deleteConfirmInput = document.getElementById('deleteConfirmText');
+      const deleteCancelBtn = document.getElementById('deleteCancelBtn');
+      const deleteConfirmBtn = document.getElementById('deleteConfirmBtn');
+      const deleteConfirmError = document.getElementById('deleteConfirmError');
+
+      function showDeleteError(msg) {
+        deleteConfirmError.textContent = msg;
+        deleteConfirmError.classList.add('show');
+      }
+      function clearDeleteError() {
+        deleteConfirmError.classList.remove('show');
+        deleteConfirmError.textContent = '';
+      }
+      function updateDeleteButtonState() {
+        const passwordFilled = deletePasswordInput.value.length > 0;
+        const confirmedExactly = deleteConfirmInput.value === 'DELETE';
+        deleteConfirmBtn.disabled = !(passwordFilled && confirmedExactly);
+      }
+
+      deleteAccountBtn.addEventListener('click', () => {
+        document.getElementById('deleteAccountRow').style.display = 'none';
+        deleteConfirmForm.style.display = 'block';
+        deletePasswordInput.value = '';
+        deleteConfirmInput.value = '';
+        clearDeleteError();
+        updateDeleteButtonState();
+        deletePasswordInput.focus();
+      });
+
+      deleteCancelBtn.addEventListener('click', () => {
+        deleteConfirmForm.style.display = 'none';
+        document.getElementById('deleteAccountRow').style.display = '';
+        deletePasswordInput.value = '';
+        deleteConfirmInput.value = '';
+        clearDeleteError();
+      });
+
+      deletePasswordInput.addEventListener('input', updateDeleteButtonState);
+      deleteConfirmInput.addEventListener('input', updateDeleteButtonState);
+
+      deleteConfirmBtn.addEventListener('click', async () => {
+        clearDeleteError();
+        const password = deletePasswordInput.value;
+        const confirm = deleteConfirmInput.value;
+
+        if (confirm !== 'DELETE') {
+          showDeleteError('Type DELETE (in capitals) to confirm.');
+          return;
+        }
+        if (!password) {
+          showDeleteError('Enter your current password.');
+          return;
+        }
+
+        // Disable buttons while running
+        deleteConfirmBtn.disabled = true;
+        deleteCancelBtn.disabled = true;
+        deleteConfirmBtn.textContent = 'Deleting…';
+
+        // Step 1 — verify the current password via signInWithPassword.
+        // This protects against deletion via a stolen session — only someone
+        // who knows the password can trigger the irreversible call.
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        if (!currentUser) {
+          showDeleteError('Not signed in.');
+          deleteConfirmBtn.disabled = false;
+          deleteCancelBtn.disabled = false;
+          deleteConfirmBtn.textContent = 'Delete my account';
+          return;
+        }
+        const { error: signInErr } = await supabase.auth.signInWithPassword({
+          email: currentUser.email,
+          password,
+        });
+        if (signInErr) {
+          showDeleteError('Current password is incorrect.');
+          deleteConfirmBtn.disabled = false;
+          deleteCancelBtn.disabled = false;
+          deleteConfirmBtn.textContent = 'Delete my account';
+          updateDeleteButtonState();
+          return;
+        }
+
+        // Step 2 — call the RPC function.
+        // It deletes storage objects, anonymizes forum content via FK SET NULL,
+        // and deletes the auth.users row. No further client work needed afterward.
+        const { error: rpcErr } = await supabase.rpc('delete_my_account');
+        if (rpcErr) {
+          showDeleteError(`Could not delete account: ${rpcErr.message}`);
+          deleteConfirmBtn.disabled = false;
+          deleteCancelBtn.disabled = false;
+          deleteConfirmBtn.textContent = 'Delete my account';
+          updateDeleteButtonState();
+          return;
+        }
+
+        // Step 3 — sign out (the session is now orphaned anyway since auth.users is gone)
+        await supabase.auth.signOut();
+
+        // Step 4 — redirect to a goodbye state on the marketing homepage
+        window.location.href = '/?deleted=1';
       });
     </script>
   </body>
