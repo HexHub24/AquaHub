@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0c4a6e" />
+    <title>Notifications — AquaHub</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" type="image/svg+xml" href="/icon.svg">
+    <link rel="apple-touch-icon" href="/icon-180.png">
+  </head>
+  <body class="app-body">
+    <div id="topNavRoot"></div>
+
+    <main class="app-page" style="max-width: 800px;">
+      <header class="dash-head" style="display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap;">
+        <div>
+          <h1 class="page-title">Notifications</h1>
+          <p class="text-muted" id="notifSub">Replies to your threads and conversations.</p>
+        </div>
+        <button id="markAllBtn" class="btn-secondary btn-inline" type="button" style="display: none">Mark all read</button>
+      </header>
+
+      <div id="notifAlert" class="alert" role="alert"></div>
+
+      <ul id="notifList" class="notif-page-list"></ul>
+
+      <div id="notifLoading" class="empty-state">Loading…</div>
+    </main>
+
+    <script type="module">
+      import { supabase, requireAuth } from '/lib/supabase.js';
+      import { mountTopNav } from '/lib/topnav.js';
+      import {
+        fetchNotifications,
+        markNotificationRead,
+        markAllRead,
+        renderNotificationRow,
+        renderEmptyNotifications,
+      } from '/lib/notifications.js';
+
+      const user = await requireAuth();
+      await mountTopNav('');
+
+      const listEl = document.getElementById('notifList');
+      const loadingEl = document.getElementById('notifLoading');
+      const markAllBtn = document.getElementById('markAllBtn');
+
+      async function load() {
+        try {
+          const { notifications, unreadCount } = await fetchNotifications({ limit: 100 });
+          loadingEl.style.display = 'none';
+
+          if (notifications.length === 0) {
+            listEl.innerHTML = renderEmptyNotifications();
+            markAllBtn.style.display = 'none';
+            return;
+          }
+
+          listEl.innerHTML = notifications.map(renderNotificationRow).join('');
+          markAllBtn.style.display = unreadCount > 0 ? '' : 'none';
+
+          // Click-to-mark-read on each row
+          listEl.querySelectorAll('[data-mark-read-on-click]').forEach((a) => {
+            a.addEventListener('click', async () => {
+              const id = a.closest('[data-notif-id]')?.dataset.notifId;
+              if (id) {
+                // Fire and forget — the user is navigating away anyway
+                markNotificationRead(id).catch(() => {});
+              }
+            });
+          });
+        } catch (e) {
+          loadingEl.textContent = `Could not load: ${e.message}`;
+        }
+      }
+
+      markAllBtn.addEventListener('click', async () => {
+        markAllBtn.disabled = true;
+        markAllBtn.textContent = 'Marking…';
+        try {
+          await markAllRead();
+          // Visually update without reload
+          listEl.querySelectorAll('.notif-row-unread').forEach((row) => {
+            row.classList.remove('notif-row-unread');
+            row.querySelector('.notif-unread-dot')?.remove();
+          });
+          markAllBtn.style.display = 'none';
+        } catch (e) {
+          markAllBtn.textContent = 'Could not mark all';
+          markAllBtn.disabled = false;
+        }
+      });
+
+      load();
+    </script>
+  </body>
+</html>
