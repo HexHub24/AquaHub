@@ -130,14 +130,18 @@
         <div class="settings-field">
           <button class="btn-secondary" id="signOutBtn" type="button">Sign out</button>
         </div>
-        <div class="settings-soon-list">
-          <div class="settings-soon-row">
+        <div class="settings-notif-pref">
+          <label class="settings-notif-row">
             <div>
-              <strong>Notifications</strong>
-              <p class="text-muted text-small">Pick what you want to be notified about.</p>
+              <strong>Forum reply notifications</strong>
+              <p class="text-muted text-small">When someone replies to a thread you authored or replied in.</p>
             </div>
-            <span class="settings-field-readonly">soon</span>
-          </div>
+            <span class="settings-toggle">
+              <input type="checkbox" id="prefForumReply" class="settings-toggle-input" />
+              <span class="settings-toggle-slider"></span>
+            </span>
+          </label>
+          <p class="settings-notif-saved" id="prefForumReplySaved" aria-live="polite"></p>
         </div>
       </section>
 
@@ -617,6 +621,58 @@
       document.getElementById('signOutBtn').addEventListener('click', async () => {
         await supabase.auth.signOut();
         window.location.href = '/login.html';
+      });
+
+      // ============================================================
+      // Notification preferences
+      // ============================================================
+      const prefForumReply = document.getElementById('prefForumReply');
+      const prefForumReplySaved = document.getElementById('prefForumReplySaved');
+
+      // Load current preference from forum_user_profiles
+      (async () => {
+        const { data: profile, error } = await supabase
+          .from('forum_user_profiles')
+          .select('notification_preferences')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (error || !profile) {
+          // If no profile (rare — display name flow should've created it), default to true
+          prefForumReply.checked = true;
+          return;
+        }
+        const prefs = profile.notification_preferences || {};
+        // Default true if not yet set
+        prefForumReply.checked = prefs.forum_reply !== false;
+      })();
+
+      let prefSaveTimeout = null;
+      prefForumReply.addEventListener('change', async () => {
+        clearTimeout(prefSaveTimeout);
+        prefForumReplySaved.textContent = '';
+        const desired = prefForumReply.checked;
+
+        // Fetch current prefs to merge (don't overwrite other keys)
+        const { data: profile } = await supabase
+          .from('forum_user_profiles')
+          .select('notification_preferences')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        const prefs = (profile?.notification_preferences) || {};
+        prefs.forum_reply = desired;
+
+        const { error } = await supabase
+          .from('forum_user_profiles')
+          .update({ notification_preferences: prefs })
+          .eq('user_id', user.id);
+
+        if (error) {
+          prefForumReplySaved.textContent = 'Could not save — try again.';
+          prefForumReply.checked = !desired; // rollback
+        } else {
+          prefForumReplySaved.textContent = 'Saved';
+          prefSaveTimeout = setTimeout(() => { prefForumReplySaved.textContent = ''; }, 2500);
+        }
       });
 
       // ============================================================
