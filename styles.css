@@ -5353,3 +5353,196 @@ body.app-body.forum-page-body .forum-main {
   outline: 2px solid var(--primary, #0ea5e9);
   outline-offset: 2px;
 }
+/* ============================================================
+   AquaHub — Profile / My Posts page (Phase 10)
+   APPEND to bottom of styles.css
+   ============================================================ */
+
+/* ---------- Profile header ---------- */
+.profile-header {
+  margin-bottom: 24px;
+}
+
+.profile-header-main {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.profile-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: 700;
+  color: white;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.profile-avatar.has-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-header-text h1 {
+  margin: 0 0 4px;
+}
+
+.profile-meta {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+/* ---------- Tabs ---------- */
+.profile-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  margin-bottom: 20px;
+  overflow-x: auto;
+}
+
+.profile-tab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-muted, #4b5563);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.profile-tab:hover {
+  color: var(--text, #111827);
+}
+
+.profile-tab.active {
+  color: var(--primary-dark, #0369a1);
+  border-bottom-color: var(--primary, #0ea5e9);
+}
+
+.profile-tab-count {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  background: var(--surface-sunken, #f3f4f6);
+  color: var(--text-muted, #4b5563);
+  border-radius: 999px;
+  min-width: 18px;
+  text-align: center;
+}
+
+.profile-tab.active .profile-tab-count {
+  background: var(--primary, #0ea5e9);
+  color: white;
+}
+
+@media (max-width: 600px) {
+  .profile-tab-label {
+    font-size: 0.85rem;
+  }
+}
+
+/* ---------- Tab panel ---------- */
+.profile-tab-panel {
+  min-height: 200px;
+}
+
+.profile-loading {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-subtle, #94a3b8);
+  font-size: 0.9rem;
+}
+
+/* ---------- Reply row (third tab) ---------- */
+.profile-reply-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.profile-reply-row {
+  list-style: none;
+}
+
+.profile-reply-row + .profile-reply-row {
+  border-top: 1px solid var(--border-subtle, #f1f5f9);
+}
+
+.profile-reply-link {
+  display: block;
+  padding: 14px 16px;
+  text-decoration: none;
+  color: var(--text, #111827);
+  transition: background 0.12s;
+}
+
+.profile-reply-link:hover {
+  background: var(--surface-sunken, #f8fafc);
+}
+
+.profile-reply-link-disabled {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.profile-reply-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--text, #111827);
+}
+
+.profile-reply-snippet {
+  font-size: 0.85rem;
+  color: var(--text-muted, #4b5563);
+  line-height: 1.45;
+  margin-bottom: 6px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.profile-reply-meta {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 0.78rem;
+  color: var(--text-subtle, #94a3b8);
+}
+
+/* ---------- Load more button ---------- */
+.profile-load-more-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+/* ---------- Forum header — actions row ---------- */
+/* When forum.html shows "My posts" link AND "+ New thread" button, wrap them */
+.forum-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
