@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0c4a6e" />
+    <title>My Profile — AquaHub</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" type="image/svg+xml" href="/icon.svg">
+    <link rel="apple-touch-icon" href="/icon-180.png">
+  </head>
+  <body class="app-body">
+    <div id="topNavRoot"></div>
+
+    <main class="app-page" style="max-width: 900px;">
+      <header class="profile-header">
+        <div class="profile-header-main">
+          <div class="profile-avatar" id="profileAvatar"></div>
+          <div class="profile-header-text">
+            <h1 class="page-title" id="profileName">Loading…</h1>
+            <p class="text-muted profile-meta" id="profileMeta"></p>
+          </div>
+        </div>
+      </header>
+
+      <div id="profileAlert" class="alert" role="alert"></div>
+
+      <nav class="profile-tabs" role="tablist">
+        <button class="profile-tab active" data-tab="threads" role="tab" aria-selected="true">
+          <span class="profile-tab-label">Threads I started</span>
+          <span class="profile-tab-count" id="countThreads">—</span>
+        </button>
+        <button class="profile-tab" data-tab="participated" role="tab" aria-selected="false">
+          <span class="profile-tab-label">Threads I've replied in</span>
+          <span class="profile-tab-count" id="countParticipated">—</span>
+        </button>
+        <button class="profile-tab" data-tab="replies" role="tab" aria-selected="false">
+          <span class="profile-tab-label">All my replies</span>
+          <span class="profile-tab-count" id="countReplies">—</span>
+        </button>
+      </nav>
+
+      <section class="profile-tab-panel" id="panelThreads">
+        <div class="profile-loading">Loading…</div>
+      </section>
+      <section class="profile-tab-panel" id="panelParticipated" style="display: none">
+        <div class="profile-loading">Loading…</div>
+      </section>
+      <section class="profile-tab-panel" id="panelReplies" style="display: none">
+        <div class="profile-loading">Loading…</div>
+      </section>
+    </main>
+
+    <script type="module">
+      import { supabase, requireAuth } from '/lib/supabase.js';
+      import { mountTopNav } from '/lib/topnav.js';
+      import { timeAgo, fullTime, snippet } from '/lib/forum.js';
+      import {
+        isMarketplaceSlug,
+        marketplacePrefix,
+        marketplacePrefixClass,
+      } from '/lib/marketplace.js';
+
+      const user = await requireAuth();
+      await mountTopNav('');
+
+      function escapeHtml(s) {
+        if (s === null || s === undefined) return '';
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+      }
+      function avatarColorClass(seed) {
+        if (!seed) return 'avatar-c0';
+        let h = 0;
+        for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
+        return `avatar-c${Math.abs(h) % 8}`;
+      }
+
+      // ============================================================
+      // Profile header
+      // ============================================================
+      let myProfile = null;
+      {
+        const { data: profile } = await supabase
+          .from('forum_user_profiles')
+          .select('display_name, avatar_url, post_count, created_at')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        myProfile = profile;
+      }
+
+      const displayName = myProfile?.display_name || 'You';
+      const avatarUrl = myProfile?.avatar_url || null;
+      const memberSince = myProfile?.created_at
+        ? new Date(myProfile.created_at).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+        : null;
+      const postCount = myProfile?.post_count ?? 0;
+
+      document.getElementById('profileName').textContent = displayName;
+      const metaParts = [];
+      if (memberSince) metaParts.push(`Joined ${memberSince}`);
+      metaParts.push(`${postCount} ${postCount === 1 ? 'post' : 'posts'}`);
+      document.getElementById('profileMeta').textContent = metaParts.join(' · ');
+
+      const avatarEl = document.getElementById('profileAvatar');
+      if (avatarUrl) {
+        avatarEl.innerHTML = `<img src="${escapeHtml(avatarUrl)}" alt="" />`;
+        avatarEl.classList.add('has-image');
+      } else {
+        const initial = displayName.trim().charAt(0).toUpperCase() || '?';
+        avatarEl.textContent = initial;
+        avatarEl.classList.add(avatarColorClass(displayName));
+      }
+
+      // ============================================================
+      // Cache for category lookups
+      // ============================================================
+      let categoryMap = {};
+      async function ensureCategoriesLoaded(threads) {
+        const catIds = [...new Set(threads.map((t) => t.category_id).filter(Boolean))];
+        const missing = catIds.filter((id) => !categoryMap[id]);
+        if (missing.length === 0) return;
+        const { data: cats } = await supabase
+          .from('forum_categories')
+          .select('id, name, slug, section')
+          .in('id', missing);
+        for (const c of (cats || [])) categoryMap[c.id] = c;
+      }
+
+      // ============================================================
+      // Tab state and lazy-load
+      // ============================================================
+      const PAGE_SIZE = 20;
+      const tabState = {
+        threads:      { loaded: false, page: 0, items: [], totalCount: null, hasMore: false },
+        participated: { loaded: false, page: 0, items: [], totalCount: null, hasMore: false },
+        replies:      { loaded: false, page: 0, items: [], totalCount: null, hasMore: false },
+      };
+
+      function setTab(tab) {
+        document.querySelectorAll('.profile-tab').forEach((btn) => {
+          const active = btn.dataset.tab === tab;
+          btn.classList.toggle('active', active);
+          btn.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+        document.querySelectorAll('.profile-tab-panel').forEach((p) => p.style.display = 'none');
+        const panel = document.getElementById(`panel${tab.charAt(0).toUpperCase()}${tab.slice(1)}`);
+        if (panel) panel.style.display = '';
+
+        if (!tabState[tab].loaded) {
+          loadTab(tab);
+        }
+      }
+
+      document.querySelectorAll('.profile-tab').forEach((btn) => {
+        btn.addEventListener('click', () => setTab(btn.dataset.tab));
+      });
+
+      // ============================================================
+      // Loaders for each tab
+      // ============================================================
+      async function loadTab(tab) {
+        const state = tabState[tab];
+        const panel = document.getElementById(`panel${tab.charAt(0).toUpperCase()}${tab.slice(1)}`);
+        try {
+          if (tab === 'threads') {
+            await loadThreadsTab(state, panel);
+          } else if (tab === 'participated') {
+            await loadParticipatedTab(state, panel);
+          } else if (tab === 'replies') {
+            await loadRepliesTab(state, panel);
+          }
+          state.loaded = true;
+        } catch (e) {
+          panel.innerHTML = `<div class="empty-state">Could not load: ${escapeHtml(e.message)}</div>`;
+        }
+      }
+
+      // ---- Tab 1: Threads I started ----
+      async function loadThreadsTab(state, panel) {
+        const from = state.page * PAGE_SIZE;
+        const to = from + PAGE_SIZE - 1;
+
+        const { data: threads, count, error } = await supabase
+          .from('forum_threads')
+          .select('id, title, body, category_id, created_at, last_reply_at, reply_count, is_pinned, is_locked, marketplace_kind, marketplace_status, marketplace_meta', { count: 'exact' })
+          .eq('author_id', user.id)
+          .eq('is_hidden', false)
+          .order('last_reply_at', { ascending: false })
+          .range(from, to);
+        if (error) throw new Error(error.message);
+
+        state.totalCount = count || 0;
+        document.getElementById('countThreads').textContent = state.totalCount;
+
+        state.items = [...state.items, ...(threads || [])];
+        state.hasMore = state.items.length < state.totalCount;
+
+        await ensureCategoriesLoaded(state.items);
+
+        renderThreadList(panel, state.items, {
+          emptyTitle: 'No threads yet',
+          emptyDesc: 'When you start a forum thread, it shows up here.',
+          showAuthorIsMe: true,
+          hasMore: state.hasMore,
+          onLoadMore: () => { state.page++; loadThreadsTab(state, panel); },
+        });
+      }
+
+      // ---- Tab 2: Threads I've replied in ----
+      async function loadParticipatedTab(state, panel) {
+        // Step 1: get distinct thread_ids I've replied in
+        if (state.page === 0) {
+          const { data: myReplies, error } = await supabase
+            .from('forum_replies')
+            .select('thread_id')
+            .eq('author_id', user.id);
+          if (error) throw new Error(error.message);
+          // Dedup
+          state._allThreadIds = [...new Set((myReplies || []).map((r) => r.thread_id))];
+          state.totalCount = state._allThreadIds.length;
+          document.getElementById('countParticipated').textContent = state.totalCount;
+        }
+
+        // No replies → empty state
+        if (!state._allThreadIds || state._allThreadIds.length === 0) {
+          panel.innerHTML = renderEmpty('No participation yet', 'When you reply in someone else\'s thread, it shows up here.');
+          state.hasMore = false;
+          return;
+        }
+
+        // Step 2: page-by-page, fetch thread rows for those ids,
+        // sorted by last_reply_at desc on the fetch (so latest-active rises)
+        const from = state.page * PAGE_SIZE;
+        const to = from + PAGE_SIZE - 1;
+        const { data: threads, error } = await supabase
+          .from('forum_threads')
+          .select('id, title, body, category_id, created_at, last_reply_at, reply_count, is_pinned, is_locked, marketplace_kind, marketplace_status, marketplace_meta, author_id')
+          .in('id', state._allThreadIds)
+          .eq('is_hidden', false)
+          .order('last_reply_at', { ascending: false })
+          .range(from, to);
+        if (error) throw new Error(error.message);
+
+        state.items = [...state.items, ...(threads || [])];
+        state.hasMore = state.items.length < state.totalCount;
+
+        await ensureCategoriesLoaded(state.items);
+
+        // For the participated tab, also resolve OP display names for context
+        const opAuthorIds = [...new Set(state.items.map((t) => t.author_id).filter((id) => id && id !== user.id))];
+        let opMap = {};
+        if (opAuthorIds.length) {
+          const { data: profs } = await supabase
+            .from('forum_user_profiles')
+            .select('user_id, display_name')
+            .in('user_id', opAuthorIds);
+          (profs || []).forEach((p) => { opMap[p.user_id] = p.display_name; });
+        }
+
+        renderThreadList(panel, state.items, {
+          emptyTitle: 'No participation yet',
+          emptyDesc: 'When you reply in someone else\'s thread, it shows up here.',
+          showAuthorIsMe: false,
+          opMap,
+          hasMore: state.hasMore,
+          onLoadMore: () => { state.page++; loadParticipatedTab(state, panel); },
+        });
+      }
+
+      // ---- Tab 3: All my replies ----
+      async function loadRepliesTab(state, panel) {
+        const from = state.page * PAGE_SIZE;
+        const to = from + PAGE_SIZE - 1;
+
+        const { data: replies, count, error } = await supabase
+          .from('forum_replies')
+          .select('id, thread_id, body, created_at', { count: 'exact' })
+          .eq('author_id', user.id)
+          .eq('is_hidden', false)
+          .order('created_at', { ascending: false })
+          .range(from, to);
+        if (error) throw new Error(error.message);
+
+        state.totalCount = count || 0;
+        document.getElementById('countReplies').textContent = state.totalCount;
+        state.items = [...state.items, ...(replies || [])];
+        state.hasMore = state.items.length < state.totalCount;
+
+        // Resolve thread titles + categories for each reply
+        const threadIds = [...new Set(state.items.map((r) => r.thread_id))];
+        const knownThreadIds = Object.keys(state._threadMap || {});
+        const missingThreadIds = threadIds.filter((id) => !knownThreadIds.includes(id));
+        if (missingThreadIds.length) {
+          const { data: threads } = await supabase
+            .from('forum_threads')
+            .select('id, title, category_id, is_hidden')
+            .in('id', missingThreadIds);
+          if (!state._threadMap) state._threadMap = {};
+          for (const t of (threads || [])) state._threadMap[t.id] = t;
+          // Load categories
+          await ensureCategoriesLoaded(threads || []);
+        }
+
+        renderReplyList(panel, state.items, state._threadMap || {}, {
+          emptyTitle: 'No replies yet',
+          emptyDesc: 'When you reply to a thread, you can find it here.',
+          hasMore: state.hasMore,
+          onLoadMore: () => { state.page++; loadRepliesTab(state, panel); },
+        });
+      }
+
+      // ============================================================
+      // Render helpers
+      // ============================================================
+      function renderEmpty(title, desc) {
+        return `
+          <div class="empty-state">
+            <div class="empty-icon">💬</div>
+            <h3>${escapeHtml(title)}</h3>
+            <p class="text-muted">${escapeHtml(desc)}</p>
+          </div>
+        `;
+      }
+
+      function renderThreadList(panel, threads, opts) {
+        if (!threads || threads.length === 0) {
+          panel.innerHTML = renderEmpty(opts.emptyTitle, opts.emptyDesc);
+          return;
+        }
+
+        const rows = threads.map((t) => {
+          const cat = categoryMap[t.category_id];
+          const catName = cat?.name || 'Category';
+          const catSlug = cat?.slug;
+
+          const mpPrefix = marketplacePrefix(t.marketplace_kind, t.marketplace_status);
+          const mpClass = marketplacePrefixClass(t.marketplace_kind, t.marketplace_status);
+          const isResolved = t.marketplace_kind && t.marketplace_status === 'resolved';
+
+          const byLine = opts.showAuthorIsMe
+            ? ''
+            : (opts.opMap?.[t.author_id]
+                ? `<span class="text-muted">· started by <strong>${escapeHtml(opts.opMap[t.author_id])}</strong></span>`
+                : (t.author_id ? '' : `<span class="text-muted">· started by <span class="forum-author-deleted">Deleted user</span></span>`));
+
+          return `
+            <li class="forum-thread-row ${t.is_pinned ? 'forum-thread-pinned' : ''} ${isResolved ? 'mp-resolved' : ''}">
+              <a href="/forum-thread.html?id=${t.id}" class="forum-thread-link">
+                <div class="forum-thread-main">
+                  <div class="forum-thread-title">
+                    ${t.is_pinned ? '<span class="forum-thread-badge">📌 Pinned</span>' : ''}
+                    ${t.is_locked && !isResolved ? '<span class="forum-thread-badge">🔒 Locked</span>' : ''}
+                    ${mpPrefix ? `<span class="${mpClass}">${mpPrefix}</span>` : ''}
+                    ${escapeHtml(t.title)}
+                  </div>
+                  <div class="forum-thread-meta">
+                    <span class="forum-category-pill">${escapeHtml(catName)}</span>
+                    <span title="${fullTime(t.last_reply_at)}">${timeAgo(t.last_reply_at)}</span>
+                    ${byLine}
+                  </div>
+                </div>
+                <div class="forum-thread-counts">
+                  <div class="forum-reply-count">${t.reply_count || 0}</div>
+                  <div class="forum-reply-label">${t.reply_count === 1 ? 'reply' : 'replies'}</div>
+                </div>
+              </a>
+            </li>
+          `;
+        }).join('');
+
+        const loadMore = opts.hasMore
+          ? `<div class="profile-load-more-wrap"><button type="button" class="btn-secondary btn-inline" id="loadMoreBtn">Load more</button></div>`
+          : '';
+
+        panel.innerHTML = `<ul class="forum-thread-list">${rows}</ul>${loadMore}`;
+
+        const btn = document.getElementById('loadMoreBtn');
+        if (btn && opts.onLoadMore) {
+          btn.addEventListener('click', () => {
+            btn.disabled = true;
+            btn.textContent = 'Loading…';
+            opts.onLoadMore();
+          });
+        }
+      }
+
+      function renderReplyList(panel, replies, threadMap, opts) {
+        if (!replies || replies.length === 0) {
+          panel.innerHTML = renderEmpty(opts.emptyTitle, opts.emptyDesc);
+          return;
+        }
+
+        const rows = replies.map((r) => {
+          const thread = threadMap[r.thread_id];
+          const threadAvailable = !!thread && !thread.is_hidden;
+          const catName = thread ? (categoryMap[thread.category_id]?.name || 'Category') : '';
+          const href = threadAvailable
+            ? `/forum-thread.html?id=${thread.id}#reply-${r.id}`
+            : '#';
+
+          return `
+            <li class="profile-reply-row">
+              <a href="${href}" class="profile-reply-link ${threadAvailable ? '' : 'profile-reply-link-disabled'}">
+                <div class="profile-reply-main">
+                  <div class="profile-reply-title">
+                    ${threadAvailable ? escapeHtml(thread.title) : '<em>(deleted thread)</em>'}
+                  </div>
+                  <div class="profile-reply-snippet">${escapeHtml(snippet(r.body, 200))}</div>
+                  <div class="profile-reply-meta">
+                    ${thread ? `<span class="forum-category-pill">${escapeHtml(catName)}</span>` : ''}
+                    <span title="${fullTime(r.created_at)}">${timeAgo(r.created_at)}</span>
+                  </div>
+                </div>
+              </a>
+            </li>
+          `;
+        }).join('');
+
+        const loadMore = opts.hasMore
+          ? `<div class="profile-load-more-wrap"><button type="button" class="btn-secondary btn-inline" id="loadMoreBtn">Load more</button></div>`
+          : '';
+
+        panel.innerHTML = `<ul class="profile-reply-list">${rows}</ul>${loadMore}`;
+
+        const btn = document.getElementById('loadMoreBtn');
+        if (btn && opts.onLoadMore) {
+          btn.addEventListener('click', () => {
+            btn.disabled = true;
+            btn.textContent = 'Loading…';
+            opts.onLoadMore();
+          });
+        }
+      }
+
+      // ============================================================
+      // Initial load
+      // ============================================================
+      setTab('threads');
+    </script>
+  </body>
+</html>
