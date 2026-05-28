@@ -23,7 +23,10 @@
             <h1 class="page-title">Forum</h1>
             <p class="text-muted" id="forumSubtitle">Discuss aquariums with other hobbyists</p>
           </div>
-          <a id="newThreadCta" href="/forum-compose.html" class="btn-primary btn-inline">+ New thread</a>
+          <div class="forum-header-actions">
+            <a id="myPostsCta" href="/profile.html" class="btn-secondary btn-inline" style="display: none">My posts →</a>
+            <a id="newThreadCta" href="/forum-compose.html" class="btn-primary btn-inline">+ New thread</a>
+          </div>
         </header>
 
         <div id="forumAlert" class="alert" role="alert"></div>
@@ -51,6 +54,11 @@
 
       const user = await getCurrentUser();
       await mountTopNav('forum', { publicMode: true });
+
+      // Show "My posts" link only when signed in
+      if (user) {
+        document.getElementById('myPostsCta').style.display = '';
+      }
 
       function escapeHtml(s) {
         if (s === null || s === undefined) return '';
